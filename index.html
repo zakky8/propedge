@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropEdge — Trader Intelligence Platform for FundingPips</title>
+  <!-- Local libs — no CDN needed, works fully offline -->
+  <script src="libs/react.js"></script>
+  <script src="libs/react-dom.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', -apple-system, sans-serif; background: #060B18; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0F172A; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+    .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
+    .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+    .glow-amber { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+    .pulse-red { animation: pulseRed 2s infinite; }
+    @keyframes pulseRed { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .pulse-amber { animation: pulseAmber 1.5s infinite; }
+    @keyframes pulseAmber { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    .card { background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; }
+    .card-inner { background: #162032; border: 1px solid #1E293B; border-radius: 8px; }
+    .btn-primary { background: linear-gradient(135deg, #2563EB, #1D4ED8); border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+    .btn-primary:hover { background: linear-gradient(135deg, #3B82F6, #2563EB); transform: translateY(-1px); }
+    .btn-success { background: linear-gradient(135deg, #059669, #047857); border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+    .btn-success:hover { transform: translateY(-1px); }
+    .btn-amber { background: linear-gradient(135deg, #D97706, #B45309); border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+    .badge { border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+    .nav-item { border-radius: 8px; cursor: pointer; transition: all 0.15s; padding: 10px 12px; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .nav-item:hover { background: #1E293B; }
+    .nav-item.active { background: linear-gradient(135deg,#1D4ED8,#1E40AF); color: white; }
+    .progress-bar-bg { background: #1E293B; border-radius: 999px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .modal-box { background: #0F172A; border: 1px solid #334155; border-radius: 16px; max-width: 640px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    input, select { background: #1E293B; border: 1px solid #334155; color: #F1F5F9; border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none; width: 100%; }
+    input:focus, select:focus { border-color: #3B82F6; }
+    .stat-card { background: linear-gradient(135deg, #0F172A, #162032); border-radius: 12px; border: 1px solid #1E293B; padding: 20px; }
+    .tag-red { background: rgba(239,68,68,0.15); color: #F87171; border: 1px solid rgba(239,68,68,0.3); }
+    .tag-green { background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.3); }
+    .tag-amber { background: rgba(245,158,11,0.15); color: #FBBF24; border: 1px solid rgba(245,158,11,0.3); }
+    .tag-blue { background: rgba(59,130,246,0.15); color: #60A5FA; border: 1px solid rgba(59,130,246,0.3); }
+    .notification { position: fixed; top: 20px; right: 20px; z-index: 200; animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from{transform:translateX(120%)} to{transform:translateX(0)} }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<!-- Pre-compiled JS (no Babel needed) -->
+<script src="libs/app.js"></script>
+</body>
+</html>
