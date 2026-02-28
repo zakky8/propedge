@@ -1,3265 +1,2891 @@
-const {
-  useState,
-  useEffect,
-  useRef,
-  useCallback
-} = React;
+// PropEdge - AI Trader Intelligence Platform for FundingPips
+// Premium React Dashboard - Self-contained JSX (React/ReactDOM are global)
 
-// ============================================================
-// CONSTANTS — INSTRUMENTS, PIP VALUES (from Technical Report)
-// ============================================================
-const INSTRUMENTS = {
-  'EURUSD': {
-    name: 'EUR/USD',
-    spread: 0.2,
-    pipValue: 10,
-    category: 'Forex Major',
-    warning: null
-  },
-  'GBPUSD': {
-    name: 'GBP/USD',
-    spread: 0.3,
-    pipValue: 10,
-    category: 'Forex Major',
-    warning: null
-  },
-  'USDJPY': {
-    name: 'USD/JPY',
-    spread: 0.4,
-    pipValue: 9.09,
-    category: 'Forex Major',
-    warning: null
-  },
-  'USDCHF': {
-    name: 'USD/CHF',
-    spread: 0.3,
-    pipValue: 10,
-    category: 'Forex Major',
-    warning: null
-  },
-  'AUDUSD': {
-    name: 'AUD/USD',
-    spread: 0.3,
-    pipValue: 10,
-    category: 'Forex Major',
-    warning: null
-  },
-  'NZDUSD': {
-    name: 'NZD/USD',
-    spread: 0.4,
-    pipValue: 10,
-    category: 'Forex Minor',
-    warning: null
-  },
-  'XAUUSD': {
-    name: 'XAU/USD (Gold)',
-    spread: 0.18,
-    pipValue: 10,
-    category: 'Metals',
-    warning: null
-  },
-  'XAGUSD': {
-    name: 'XAG/USD (Silver)',
-    spread: 0.35,
-    pipValue: 50,
-    category: 'Metals',
-    warning: '⚠️ XAG pip value = $50/lot (5× EURUSD). 2.5 lots can wipe your ENTIRE daily limit in spread alone.'
-  },
-  'US30': {
-    name: 'US30 (Dow Jones)',
-    spread: 0.5,
-    pipValue: 10,
-    category: 'Indices',
-    warning: null
-  },
-  'US100': {
-    name: 'NAS100 (Nasdaq)',
-    spread: 0.4,
-    pipValue: 10,
-    category: 'Indices',
-    warning: null
-  },
-  'BTCUSD': {
-    name: 'BTC/USD',
-    spread: 15,
-    pipValue: 1,
-    category: 'Crypto',
-    warning: '⚠️ Crypto spreads are highly volatile. Costs shown are estimates only.'
-  }
-};
-const ACCOUNT_TYPES = {
-  '2-step-standard': {
-    name: '2-Step Standard',
-    dailyLimit: 0.05,
-    maxDD: 0.10,
-    consistencyCap: null
-  },
-  '2-step-pro': {
-    name: '2-Step Pro',
-    dailyLimit: 0.03,
-    maxDD: 0.06,
-    consistencyCap: 0.45
-  },
-  '1-step': {
-    name: '1-Step',
-    dailyLimit: 0.05,
-    maxDD: 0.10,
-    consistencyCap: null
-  },
-  'zero': {
-    name: 'Zero',
-    dailyLimit: 0.03,
-    maxDD: 0.06,
-    consistencyCap: 0.15
-  }
-};
-const PAYOUT_TYPES = {
-  'on-demand': {
-    name: 'On-Demand',
-    consistencyCap: 0.35
-  },
-  'bi-weekly': {
-    name: 'Bi-Weekly',
-    consistencyCap: null
-  },
-  'weekly': {
-    name: 'Weekly',
-    consistencyCap: null
-  },
-  '2-step-pro': {
-    name: 'Pro Payout',
-    consistencyCap: 0.45
-  }
-};
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
-// Mock trade history — 9 days in current payout cycle
-const MOCK_TRADES = [{
-  date: '2026-02-17',
-  profit: 800,
-  trades: 4
+const INSTRUMENTS = [{
+  id: 'eurusd',
+  symbol: 'EURUSD',
+  pipValue: 10,
+  spread: 0.3,
+  category: 'Major',
+  warning: false
 }, {
-  date: '2026-02-18',
-  profit: 600,
-  trades: 3
+  id: 'gbpusd',
+  symbol: 'GBPUSD',
+  pipValue: 10,
+  spread: 0.3,
+  category: 'Major',
+  warning: false
 }, {
-  date: '2026-02-19',
-  profit: -320,
-  trades: 5
+  id: 'usdjpy',
+  symbol: 'USDJPY',
+  pipValue: 9.3,
+  spread: 0.3,
+  category: 'Major',
+  warning: false
 }, {
-  date: '2026-02-20',
-  profit: 1500,
-  trades: 6
-},
-// Best day — potential violation
-{
-  date: '2026-02-21',
-  profit: 0,
-  trades: 0
+  id: 'audusd',
+  symbol: 'AUDUSD',
+  pipValue: 10,
+  spread: 0.5,
+  category: 'Major',
+  warning: false
 }, {
-  date: '2026-02-24',
-  profit: 400,
-  trades: 3
+  id: 'nzdusd',
+  symbol: 'NZDUSD',
+  pipValue: 10,
+  spread: 0.5,
+  category: 'Major',
+  warning: false
 }, {
-  date: '2026-02-25',
-  profit: 300,
-  trades: 2
+  id: 'xauusd',
+  symbol: 'XAUUSD',
+  pipValue: 1,
+  spread: 0.3,
+  category: 'Commodities',
+  warning: false
 }, {
-  date: '2026-02-26',
-  profit: 350,
-  trades: 4
+  id: 'xagusd',
+  symbol: 'XAGUSD',
+  pipValue: 100,
+  spread: 2,
+  category: 'Commodities',
+  warning: true
 }, {
-  date: '2026-02-27',
-  profit: 150,
-  trades: 2
-} // Today (partial)
-];
+  id: 'oil',
+  symbol: 'CRUDEOIL',
+  pipValue: 10,
+  spread: 0.05,
+  category: 'Commodities',
+  warning: false
+}, {
+  id: 'sp500',
+  symbol: 'SP500',
+  pipValue: 1,
+  spread: 2,
+  category: 'Indices',
+  warning: false
+}, {
+  id: 'btcusd',
+  symbol: 'BTCUSD',
+  pipValue: 0.1,
+  spread: 50,
+  category: 'Crypto',
+  warning: false
+}, {
+  id: 'ethusd',
+  symbol: 'ETHUSD',
+  pipValue: 0.01,
+  spread: 5,
+  category: 'Crypto',
+  warning: false
+}];
+const ACCOUNT_TYPES = [{
+  id: '2-step-standard',
+  name: '2-Step Standard',
+  steps: 2,
+  dailyLimit: 5,
+  maxDD: 5,
+  consistencyCap: 0.1
+}, {
+  id: '2-step-pro',
+  name: '2-Step Pro',
+  steps: 2,
+  dailyLimit: 10,
+  maxDD: 8,
+  consistencyCap: 0.15
+}, {
+  id: '1-step',
+  name: '1-Step Funded',
+  steps: 1,
+  dailyLimit: 10,
+  maxDD: 10,
+  consistencyCap: 0.2
+}, {
+  id: 'zero',
+  name: 'Zero',
+  steps: 0,
+  dailyLimit: 0,
+  maxDD: 0,
+  consistencyCap: 0.25
+}];
+const PAYOUT_TYPES = [{
+  id: 'on-demand',
+  name: 'On-Demand',
+  schedule: 'Instant',
+  minPayout: 500
+}, {
+  id: 'bi-weekly',
+  name: 'Bi-Weekly',
+  schedule: 'Every 2 weeks',
+  minPayout: 1000
+}, {
+  id: 'weekly',
+  name: 'Weekly',
+  schedule: 'Every 7 days',
+  minPayout: 750
+}, {
+  id: '2-step-pro',
+  name: '2-Step Pro Payout',
+  schedule: 'After step 2',
+  minPayout: 2000
+}];
 
-// Today's high-impact news (mock — real version uses JBlanked API)
-const now = new Date();
-const todayStr = now.toISOString().split('T')[0];
+// ============================================================================
+// MOCK DATA
+// ============================================================================
+
+const MOCK_TRADES = (() => {
+  const trades = [];
+  for (let day = 1; day <= 28; day++) {
+    const date = new Date(2026, 1, day);
+    const numTrades = Math.floor(Math.random() * 8) + 3;
+    const dayProfit = (Math.random() - 0.3) * 500 + 200;
+    trades.push({
+      date: date.toISOString().split('T')[0],
+      trades: numTrades,
+      profit: dayProfit
+    });
+  }
+  return trades;
+})();
 const NEWS_EVENTS = [{
-  name: 'Non-Farm Payrolls',
+  id: 1,
+  time: -1.5,
   currency: 'USD',
-  hour: now.getHours() + 1,
-  minute: 30,
-  impact: 'High',
-  forecast: '180K',
-  previous: '256K',
-  windowMins: 10
+  impact: 'HIGH',
+  event: 'FOMC Interest Rate Decision',
+  forecast: '5.25%',
+  previous: '5.50%',
+  window: 1
 }, {
-  name: 'Fed Interest Rate Decision',
-  currency: 'USD',
-  hour: now.getHours() + 3,
-  minute: 0,
-  impact: 'High',
+  id: 2,
+  time: 0.75,
+  currency: 'EUR',
+  impact: 'HIGH',
+  event: 'ECB Interest Rate Decision',
   forecast: '4.50%',
   previous: '4.50%',
-  windowMins: 10
+  window: 1
 }, {
-  name: 'ECB Press Conference',
-  currency: 'EUR',
-  hour: now.getHours() + 5,
-  minute: 45,
-  impact: 'High',
-  forecast: null,
-  previous: null,
-  windowMins: 5
-}, {
-  name: 'CPI (YoY)',
+  id: 3,
+  time: 2.25,
   currency: 'GBP',
-  hour: now.getHours() + 7,
-  minute: 0,
-  impact: 'Medium',
-  forecast: '2.8%',
-  previous: '2.5%',
-  windowMins: 5
+  impact: 'MEDIUM',
+  event: 'UK CPI YoY',
+  forecast: '4.2%',
+  previous: '4.2%',
+  window: 1
+}, {
+  id: 4,
+  time: 3.5,
+  currency: 'JPY',
+  impact: 'MEDIUM',
+  event: 'BOJ Policy Decision',
+  forecast: '-0.10%',
+  previous: '0.00%',
+  window: 2
+}, {
+  id: 5,
+  time: 4.75,
+  currency: 'AUD',
+  impact: 'LOW',
+  event: 'RBA Minutes Release',
+  forecast: 'N/A',
+  previous: 'N/A',
+  window: 1
+}, {
+  id: 6,
+  time: 6.0,
+  currency: 'CHF',
+  impact: 'MEDIUM',
+  event: 'SNB Interest Rate',
+  forecast: '1.00%',
+  previous: '1.00%',
+  window: 1
 }];
 const MOCK_RULES = [{
-  id: 'r1',
-  title: 'News Trading Restriction — Extended Window',
-  category: 'trading',
+  id: 1,
+  title: 'Daily Loss Limit Update',
+  category: 'Risk Management',
   effectiveDate: '2026-02-28',
-  oldText: 'Trading is restricted 5 minutes before and 5 minutes after high-impact news events.',
-  newText: 'Trading is restricted 10 minutes before and 10 minutes after high-impact news events. This restriction now applies to ALL account types including Master phase accounts. Trades opened or closed within this window will have profits excluded from payout calculations.',
-  affectedAccounts: ['All Account Types'],
+  oldText: 'Daily loss limit is 5% of account balance for all account types.',
+  newText: 'Daily loss limit is now 5% for Standard, 10% for Pro accounts. Zero accounts: 0%.',
+  affectedAccounts: ['2-step-standard', '2-step-pro', 'zero'],
   acknowledged: false
 }, {
-  id: 'r2',
-  title: 'Consistency Rule — On-Demand Payout Cap Update',
-  category: 'payout',
+  id: 2,
+  title: 'New Instrument: Micro Gold Contracts',
+  category: 'Trading Rules',
+  effectiveDate: '2026-02-28',
+  oldText: 'Gold trading available via XAUUSD contracts only.',
+  newText: 'Micro gold contracts (1/100th standard) now available. Spread: 0.5 pips.',
+  affectedAccounts: ['2-step-standard', '2-step-pro', '1-step'],
+  acknowledged: false
+}, {
+  id: 3,
+  title: 'Consistency Ratio Enforcement',
+  category: 'Compliance',
   effectiveDate: '2026-03-01',
-  oldText: 'On-demand payout requests are subject to a 40% single-day consistency cap.',
-  newText: 'On-demand payout requests are now subject to a 35% single-day consistency cap (reduced from 40%). Any single trading day profit must not exceed 35% of total cycle profits at time of payout request.',
-  affectedAccounts: ['On-Demand Payout Accounts'],
+  oldText: 'Consistency ratio monitored monthly only.',
+  newText: 'Consistency ratio now enforced daily. Violating traders flagged immediately.',
+  affectedAccounts: ['2-step-standard', '2-step-pro', '1-step', 'zero'],
   acknowledged: false
 }];
 const MOCK_POSITIONS = [{
+  id: 1,
   symbol: 'EURUSD',
-  side: 'BUY',
-  lots: 1.5,
-  openPrice: 1.0821,
-  profit: 145,
-  risk: false
+  type: 'LONG',
+  entry: 1.0850,
+  current: 1.0872,
+  size: 2.5,
+  pnl: 550,
+  pnlPct: 2.15
 }, {
+  id: 2,
+  symbol: 'GBPUSD',
+  type: 'SHORT',
+  entry: 1.2640,
+  current: 1.2610,
+  size: 1.0,
+  pnl: 300,
+  pnlPct: 2.38
+}, {
+  id: 3,
   symbol: 'XAUUSD',
-  side: 'SELL',
-  lots: 0.5,
-  openPrice: 2645.20,
-  profit: -38,
-  risk: true
+  type: 'LONG',
+  entry: 2045.50,
+  current: 2068.75,
+  size: 0.5,
+  pnl: 1161.25,
+  pnlPct: 1.14
 }];
 const MOCK_LEADERBOARD = [{
   rank: 1,
-  name: 'Trader_AX91',
-  profit: 12400,
-  winRate: 72,
-  country: '🇦🇪'
+  name: 'TraderPro_TX',
+  country: 'US',
+  profit: 12450,
+  winRate: 68.5
 }, {
   rank: 2,
-  name: 'FX_Master_22',
-  profit: 9800,
-  winRate: 68,
-  country: '🇬🇧'
+  name: 'ForexMaster',
+  country: 'UK',
+  profit: 11280,
+  winRate: 65.2
 }, {
   rank: 3,
-  name: 'PipHunter_K',
-  profit: 8600,
-  winRate: 65,
-  country: '🇮🇳'
+  name: 'AlgoKing',
+  country: 'SG',
+  profit: 10950,
+  winRate: 72.1
 }, {
   rank: 4,
-  name: 'You',
-  profit: 3780,
-  winRate: 58,
-  country: '🇮🇳',
-  isYou: true
+  name: 'VolumeHunter',
+  country: 'AU',
+  profit: 9840,
+  winRate: 63.8
 }, {
   rank: 5,
-  name: 'GoldTrader_7',
-  profit: 3200,
-  winRate: 55,
-  country: '🇺🇸'
+  name: 'DataDrivenDan',
+  country: 'CA',
+  profit: 9210,
+  winRate: 71.3
+}, {
+  rank: 6,
+  name: 'SwingSetSally',
+  country: 'US',
+  profit: 8765,
+  winRate: 59.2
+}, {
+  rank: 7,
+  name: 'TrendFollower',
+  country: 'DE',
+  profit: 8420,
+  winRate: 67.4
+}, {
+  rank: 8,
+  name: 'ScalpMaster',
+  country: 'JP',
+  profit: 7890,
+  winRate: 72.8
+}, {
+  rank: 9,
+  name: 'MyTradingCode',
+  country: 'NL',
+  profit: 7245,
+  winRate: 61.1
+}, {
+  rank: 10,
+  name: 'YourAccount',
+  country: 'US',
+  profit: 6850,
+  winRate: 58.9
 }];
 
-// ============================================================
+// ============================================================================
 // UTILITY FUNCTIONS
-// ============================================================
-function formatCurrency(n) {
-  if (n === null || n === undefined) return '—';
-  const abs = Math.abs(n);
-  const str = abs >= 1000 ? '$' + (abs / 1000).toFixed(1) + 'K' : '$' + abs.toFixed(2);
-  return n < 0 ? '-' + str : str;
+// ============================================================================
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(value);
 }
-function formatSeconds(s) {
-  if (s <= 0) return '00:00:00';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor(s % 3600 / 60);
-  const sec = s % 60;
-  return [h, m, sec].map(x => String(x).padStart(2, '0')).join(':');
+function formatPct(value) {
+  return (value >= 0 ? '+' : '') + (value * 100).toFixed(2) + '%';
 }
-
-// F5: Consistency Rule Engine — exact formula from Technical Report
-function calculateConsistency(trades, payoutType, accountType) {
-  const config = ACCOUNT_TYPES[accountType] || ACCOUNT_TYPES['2-step-standard'];
-  const payoutConfig = PAYOUT_TYPES[payoutType] || PAYOUT_TYPES['on-demand'];
-
-  // Account-level cap takes priority (Zero = always 15%)
-  const cap = accountType === 'zero' ? 0.15 : payoutConfig.consistencyCap || config.consistencyCap;
-  const dailyPnL = {};
-  trades.forEach(t => {
-    dailyPnL[t.date] = t.profit;
-  });
-  const totalProfit = Object.values(dailyPnL).reduce((a, b) => a + b, 0);
-  const profitDays = Object.values(dailyPnL).filter(p => p > 0);
-  const bestDayProfit = profitDays.length ? Math.max(...profitDays) : 0;
-  const bestDayDate = Object.keys(dailyPnL).find(d => dailyPnL[d] === bestDayProfit) || '';
-  const todayKey = new Date().toISOString().split('T')[0];
-  const todayPnL = dailyPnL[todayKey] || 0;
-
-  // Formula: maxToday = (cap × totalProfit) / (1 - cap) - todayPnLSoFar
-  const maxToday = cap ? Math.max(0, cap * totalProfit / (1 - cap) - Math.max(todayPnL, 0)) : Infinity;
-  const currentRatio = totalProfit > 0 ? bestDayProfit / totalProfit : 0;
-  const isViolating = cap ? currentRatio > cap : false;
-  const daysTraded = trades.filter(t => t.profit !== 0).length;
-  const winDays = trades.filter(t => t.profit > 0).length;
-  return {
-    totalProfit,
-    bestDayProfit,
-    bestDayDate,
-    cap,
-    isViolating,
-    currentRatio,
-    maxToday,
-    dailyPnL,
-    todayPnL,
-    daysTraded,
-    winDays,
-    hasCap: !!cap
-  };
+function formatSeconds(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor(seconds % 3600 / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+function calculateConsistency(totalProfit, todayPnL, cap) {
+  if (totalProfit <= 0) return 0;
+  const maxToday = cap * totalProfit / (1 - cap) - Math.max(todayPnL, 0);
+  return Math.min(1, Math.abs(todayPnL) / (maxToday || 0.01));
+}
+function calculateTrueCost(lotSize, spread, pipValue) {
+  return lotSize * spread * pipValue;
 }
 
-// F4: True Cost Calculator — exact formula from Technical Report
-function calculateTrueCost(instrumentKey, lotSize, accountType, accountSize) {
-  const instrument = INSTRUMENTS[instrumentKey];
-  const acctConfig = ACCOUNT_TYPES[accountType] || ACCOUNT_TYPES['2-step-standard'];
-  if (!instrument || !lotSize || !accountSize) return null;
-  const spread = instrument.spread;
-  const pipValue = instrument.pipValue;
-  const commission = 2.0 * lotSize; // $2/lot round-trip (industry standard)
-  const spreadCost = spread * pipValue * lotSize;
-  const totalEntryCost = spreadCost + commission;
-  const dailyLimitUSD = accountSize * acctConfig.dailyLimit;
-  const pctOfDailyLimit = totalEntryCost / dailyLimitUSD * 100;
-  const maxProfitRule = accountSize * 0.03;
-  const breaksEvenAt = totalEntryCost / (pipValue * lotSize);
-  return {
-    spread,
-    spreadCost,
-    commission,
-    totalEntryCost,
-    dailyLimitUSD,
-    pctOfDailyLimit,
-    maxProfitRule,
-    breaksEvenAt,
-    pipValue,
-    warning: instrument.warning,
-    riskLevel: pctOfDailyLimit > 20 ? 'HIGH' : pctOfDailyLimit > 10 ? 'MEDIUM' : 'LOW'
-  };
+// ============================================================================
+// SVG COMPONENTS
+// ============================================================================
+
+function EquityChart({
+  data
+}) {
+  if (!data || data.length === 0) {
+    return /*#__PURE__*/React.createElement("svg", {
+      viewBox: "0 0 600 120",
+      style: {
+        width: '100%',
+        height: 'auto'
+      }
+    }, /*#__PURE__*/React.createElement("rect", {
+      width: "600",
+      height: "120",
+      fill: "var(--bg2)"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: "300",
+      y: "60",
+      textAnchor: "middle",
+      fill: "var(--t3)",
+      fontSize: "14"
+    }, "No data"));
+  }
+  const points = data.map((d, i) => ({
+    x: i / (data.length - 1 || 1) * 600,
+    y: 120 - (d.equity || 25000) / 25000 * 100,
+    value: d.equity || 25000
+  }));
+  const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+  const fillPoints = `0,120 ${polylinePoints} 600,120`;
+  return /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 600 120",
+    style: {
+      width: '100%',
+      height: 'auto'
+    },
+    className: "gbl"
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
+    id: "eqGrad",
+    x1: "0%",
+    y1: "0%",
+    x2: "0%",
+    y2: "100%"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "0%",
+    stopColor: "#10b981",
+    stopOpacity: "0.3"
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "100%",
+    stopColor: "#10b981",
+    stopOpacity: "0"
+  }))), /*#__PURE__*/React.createElement("polygon", {
+    points: fillPoints,
+    fill: "url(#eqGrad)"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: polylinePoints,
+    fill: "none",
+    stroke: "#10b981",
+    strokeWidth: "2"
+  }), points.map((p, i) => /*#__PURE__*/React.createElement("circle", {
+    key: i,
+    cx: p.x,
+    cy: p.y,
+    r: "1.5",
+    fill: "#10b981"
+  })), /*#__PURE__*/React.createElement("text", {
+    x: "10",
+    y: "110",
+    fontSize: "11",
+    fill: "var(--t3)",
+    className: "lb"
+  }, "Feb 1"), /*#__PURE__*/React.createElement("text", {
+    x: "570",
+    y: "110",
+    fontSize: "11",
+    fill: "var(--t3)",
+    className: "lb",
+    textAnchor: "end"
+  }, "Feb 28"));
 }
-function getEquityCurve(trades) {
-  let equity = 0;
-  return trades.map(t => {
-    equity += t.profit;
-    return {
-      date: t.date.slice(5),
-      equity
-    };
-  });
+function ArcGauge({
+  pct,
+  color = '#3b82f6',
+  label = 'Ratio'
+}) {
+  const startAngle = -140;
+  const endAngle = 140;
+  const angle = startAngle + (endAngle - startAngle) * pct;
+  const rad = angle * Math.PI / 180;
+  const x = 60 + 40 * Math.cos(rad);
+  const y = 60 + 40 * Math.sin(rad);
+  const startRad = startAngle * Math.PI / 180;
+  const sx = 60 + 40 * Math.cos(startRad);
+  const sy = 60 + 40 * Math.sin(startRad);
+  const endRad = endAngle * Math.PI / 180;
+  const ex = 60 + 40 * Math.cos(endRad);
+  const ey = 60 + 40 * Math.sin(endRad);
+  const bgArc = `M ${sx} ${sy} A 40 40 0 0 1 ${ex} ${ey}`;
+  const fillArc = angle > startAngle ? `M ${sx} ${sy} A 40 40 0 0 1 ${x} ${y}` : '';
+  return /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 120 120",
+    style: {
+      width: '120px',
+      height: '120px'
+    }
+  }, /*#__PURE__*/React.createElement("path", {
+    d: bgArc,
+    stroke: "var(--card-h)",
+    strokeWidth: "8",
+    fill: "none",
+    strokeLinecap: "round"
+  }), fillArc && /*#__PURE__*/React.createElement("path", {
+    d: fillArc,
+    stroke: color,
+    strokeWidth: "8",
+    fill: "none",
+    strokeLinecap: "round"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "60",
+    y: "55",
+    textAnchor: "middle",
+    fontSize: "20",
+    fontWeight: "600",
+    fill: "var(--t1)"
+  }, (pct * 100).toFixed(0), "%"), /*#__PURE__*/React.createElement("text", {
+    x: "60",
+    y: "72",
+    textAnchor: "middle",
+    fontSize: "11",
+    fill: "var(--t3)",
+    className: "lb"
+  }, label));
+}
+function MiniBar({
+  value,
+  max,
+  color = '#3b82f6'
+}) {
+  const pct = max > 0 ? value / max : 0;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '8px',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: '6px',
+      background: 'var(--card-h)',
+      borderRadius: '3px',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      width: `${Math.min(100, pct * 100)}%`,
+      background: color,
+      transition: 'all 0.3s'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      minWidth: '40px',
+      textAlign: 'right'
+    }
+  }, (pct * 100).toFixed(0), "%"));
 }
 
-// ============================================================
-// SIDEBAR
-// ============================================================
-const NAV_ITEMS = [{
-  id: 'dashboard',
-  icon: '⬛',
-  label: 'Dashboard',
-  badge: null
-}, {
-  id: 'news',
-  icon: '📰',
-  label: 'News Monitor',
-  badge: '🔴'
-}, {
-  id: 'consistency',
-  icon: '📈',
-  label: 'Consistency',
-  badge: '⚠️'
-}, {
-  id: 'cost',
-  icon: '💸',
-  label: 'Cost Calculator',
-  badge: null
-}, {
-  id: 'rules',
-  icon: '📋',
-  label: 'Rule Centre',
-  badge: '2'
-}, {
-  id: 'coach',
-  icon: '🤖',
-  label: 'AI Coach',
-  badge: null
-}, {
-  id: 'analytics',
-  icon: '📊',
-  label: 'Analytics',
-  badge: null
-}, {
-  id: 'reports',
-  icon: '📄',
-  label: 'Reports',
-  badge: null
-}, {
-  id: 'community',
-  icon: '🏆',
-  label: 'Community',
-  badge: null
-}];
+// ============================================================================
+// SIDEBAR COMPONENT
+// ============================================================================
+
 function Sidebar({
   activeTab,
   setActiveTab
 }) {
+  const navItems = [{
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: 'M3 3h8v8H3V3m10 0h8v8h-8V3M3 13h8v8H3v-8m10 0h8v8h-8v-8'
+  }, {
+    id: 'news',
+    label: 'News Monitor',
+    icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-2.96-3.83c-.375-.48-.995-.67-1.56-.5-.564.17-1.04.72-1.04 1.35v4.15h12v-4.15c0-.63-.475-1.18-1.04-1.35-.562-.17-1.18.025-1.56.5z'
+  }, {
+    id: 'consistency',
+    label: 'Consistency',
+    icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8m3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5m-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11m3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z'
+  }, {
+    id: 'costcalc',
+    label: 'Cost Calc',
+    icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8m3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5m-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11m3.5 6c-2.33 0-4.31 1.46-5.11 3.5h10.22c-.8-2.04-2.78-3.5-5.11-3.5z'
+  }, {
+    id: 'rules',
+    label: 'Rule Centre',
+    icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 9.5c0 .83-.67 1.5-1.5 1.5S11 13.33 11 12.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM5 9h14v2H5V9z'
+  }, {
+    id: 'coach',
+    label: 'AI Coach',
+    icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12h-8v-2h8v2zm0-3h-8V9h8v2zm0-3H4V6h14v2z'
+  }, {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2V17zm4 0h-2V7h2V17zm4 0h-2v-4h2V17z'
+  }, {
+    id: 'reports',
+    label: 'Reports',
+    icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z'
+  }, {
+    id: 'community',
+    label: 'Community',
+    icon: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z'
+  }];
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 220,
-      minHeight: '100vh',
-      background: '#080E1A',
-      borderRight: '1px solid #1E293B',
-      padding: '0',
+      width: '240px',
+      background: 'var(--bg2)',
+      borderRight: '1px solid var(--brd)',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      height: '100vh',
+      position: 'fixed',
+      left: 0,
+      top: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: '20px 16px 16px',
-      borderBottom: '1px solid #1E293B'
+      padding: '24px',
+      borderBottom: '1px solid var(--brd)'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10
+      gap: '12px',
+      marginBottom: '8px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 32,
-      height: 32,
-      background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
-      borderRadius: 8,
+      width: '36px',
+      height: '36px',
+      background: 'linear-gradient(135deg, var(--acc), #2dd4bf)',
+      borderRadius: '8px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontWeight: 900,
-      fontSize: 14,
-      color: 'white'
+      color: 'white',
+      fontWeight: '700',
+      fontSize: '16px'
     }
   }, "PE"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 15,
-      letterSpacing: 0.5
+      fontSize: '14px',
+      fontWeight: '700',
+      color: 'var(--t1)'
     }
   }, "PropEdge"), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#64748B',
-      fontSize: 10
+      fontSize: '11px',
+      color: 'var(--t3)'
     }
-  }, "Powered by FundingPips")))), /*#__PURE__*/React.createElement("div", {
+  }, "FundingPips")))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
     style: {
-      margin: '12px 12px',
-      background: '#0F172A',
-      border: '1px solid #1E293B',
-      borderRadius: 8,
-      padding: '10px 12px'
+      margin: '16px',
+      padding: '16px'
     }
   }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '8px'
+    }
+  }, "Account Status"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)',
+      marginBottom: '8px'
+    }
+  }, "$25,000 \xB7 2-Step Pro"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
+      gap: '8px',
+      marginBottom: '10px'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 11
-    }
-  }, "ACCOUNT"), /*#__PURE__*/React.createElement("span", {
-    className: "badge tag-green",
-    style: {
-      fontSize: 10
-    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
   }, "FUNDED")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "$25,000 \xB7 2-Step"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 6
-    }
+    className: "ptrack"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "pfill",
     style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 3
+      width: '62%'
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#64748B',
-      fontSize: 10
+      fontSize: '11px',
+      color: 'var(--t3)',
+      marginTop: '6px'
     }
-  }, "Payout Progress"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#34D399',
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "75%")), /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-bg",
-    style: {
-      height: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-fill",
-    style: {
-      width: '75%',
-      background: 'linear-gradient(90deg,#10B981,#059669)'
-    }
-  })))), /*#__PURE__*/React.createElement("div", {
+  }, "$15,500 / $25,000")), /*#__PURE__*/React.createElement("nav", {
     style: {
       flex: 1,
-      padding: '4px 10px',
-      overflowY: 'auto'
+      overflow: 'auto',
+      padding: '8px'
     }
-  }, NAV_ITEMS.map(item => /*#__PURE__*/React.createElement("div", {
+  }, navItems.map(item => /*#__PURE__*/React.createElement("div", {
     key: item.id,
-    className: `nav-item ${activeTab === item.id ? 'active' : ''}`,
-    style: {
-      color: activeTab === item.id ? 'white' : '#94A3B8',
-      marginBottom: 2
-    },
-    onClick: () => setActiveTab(item.id)
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 16
-    }
-  }, item.icon), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontWeight: activeTab === item.id ? 700 : 400
-    }
-  }, item.label), item.badge && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: item.badge === '🔴' || item.badge === '⚠️' ? 14 : 10,
-      background: item.badge.length > 1 ? 'transparent' : '#EF4444',
-      borderRadius: 999,
-      padding: item.badge.length > 1 ? '0' : '1px 6px',
-      color: 'white',
-      fontWeight: 700
-    }
-  }, item.badge)))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '12px 16px',
-      borderTop: '1px solid #1E293B'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 6,
-      fontSize: 10,
-      color: '#475569'
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCA1 Skills"), /*#__PURE__*/React.createElement("span", null, "\xB7"), /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD17 KW Plugins"), /*#__PURE__*/React.createElement("span", null, "\xB7"), /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCCA FS Plugins")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#1E40AF',
-      fontSize: 10,
-      marginTop: 4
-    }
-  }, "v2.0 \xB7 All 3 Repos Active")));
-}
-
-// ============================================================
-// DASHBOARD (Overview)
-// ============================================================
-function Dashboard({
-  setActiveTab
-}) {
-  const consistency = calculateConsistency(MOCK_TRADES, 'on-demand', '2-step-standard');
-  const firstNews = NEWS_EVENTS[0];
-  const nowSecs = new Date();
-  const eventTime = new Date();
-  eventTime.setHours(firstNews.hour, firstNews.minute, 0);
-  const secsToEvent = Math.max(0, Math.floor((eventTime - nowSecs) / 1000));
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "Dashboard"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Real-time intelligence for your FundingPips account")), consistency.isViolating && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(239,68,68,0.1)',
-      border: '1px solid rgba(239,68,68,0.4)',
-      borderRadius: 10,
-      padding: '12px 16px',
-      marginBottom: 16,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 20
-    }
-  }, "\uD83D\uDEA8"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontWeight: 700,
-      fontSize: 14
-    }
-  }, "Consistency Rule Violation Detected"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#FCA5A5',
-      fontSize: 12
-    }
-  }, "Your best day (", formatCurrency(consistency.bestDayProfit), ") is ", (consistency.currentRatio * 100).toFixed(1), "% of total profit \u2014 exceeds your 35% cap. ", /*#__PURE__*/React.createElement("span", {
+    className: `nav-b${activeTab === item.id ? ' on' : ''}`,
+    onClick: () => setActiveTab(item.id),
     style: {
       cursor: 'pointer',
-      textDecoration: 'underline'
-    },
-    onClick: () => setActiveTab('consistency')
-  }, "View Details \u2192")))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(245,158,11,0.08)',
-      border: '1px solid rgba(245,158,11,0.3)',
-      borderRadius: 10,
-      padding: '12px 16px',
-      marginBottom: 20,
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      cursor: 'pointer'
-    },
-    onClick: () => setActiveTab('rules')
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 20
+      gap: '12px',
+      padding: '12px 12px',
+      margin: '4px 0',
+      borderRadius: '8px',
+      transition: 'all 0.2s',
+      borderLeft: '3px solid transparent'
     }
-  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: item.icon
+  })), /*#__PURE__*/React.createElement("span", {
     style: {
-      flex: 1
+      fontSize: '13px'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, item.label)))), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#FBBF24',
-      fontWeight: 700,
-      fontSize: 14
+      padding: '16px',
+      borderTop: '1px solid var(--brd)',
+      fontSize: '11px',
+      color: 'var(--t3)'
     }
-  }, "2 Rule Changes Require Your Acknowledgement"), /*#__PURE__*/React.createElement("div", {
+  }, "PropEdge v2.1.0", /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#FCD34D',
-      fontSize: 12
+      marginTop: '4px'
     }
-  }, "Effective Feb 28 & Mar 1 \u2014 review and acknowledge to avoid payout delays")), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#FBBF24',
-      fontSize: 18
-    }
-  }, "\u203A")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: 14,
-      marginBottom: 20
-    }
-  }, [{
-    label: 'Cycle Profit',
-    value: formatCurrency(consistency.totalProfit),
-    sub: '9 trading days',
-    color: '#34D399',
-    icon: '💰'
-  }, {
-    label: 'Consistency Score',
-    value: consistency.isViolating ? 'VIOLATING' : ((1 - consistency.currentRatio / consistency.cap) * 100).toFixed(0) + '% Safe',
-    sub: `Best day: ${(consistency.currentRatio * 100).toFixed(1)}% of total`,
-    color: consistency.isViolating ? '#F87171' : '#34D399',
-    icon: '📏'
-  }, {
-    label: 'Max Today',
-    value: consistency.hasCap ? formatCurrency(consistency.maxToday) : 'No Cap',
-    sub: 'Before consistency violation',
-    color: '#60A5FA',
-    icon: '🎯'
-  }, {
-    label: 'Next News',
-    value: formatSeconds(secsToEvent),
-    sub: firstNews.name,
-    color: secsToEvent < 1800 ? '#F87171' : '#FBBF24',
-    icon: '📰'
-  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "stat-card"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 12,
-      fontWeight: 600
-    }
-  }, s.label.toUpperCase()), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 20
-    }
-  }, s.icon)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: s.color,
-      fontSize: 22,
-      fontWeight: 800,
-      margin: '8px 0 4px'
-    }
-  }, s.value), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11
-    }
-  }, s.sub)))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
-    }
-  }, "FEATURE STATUS"), [{
-    name: 'News Monitor (F6)',
-    status: 'ACTIVE',
-    color: '#34D399',
-    desc: `Next event in ${formatSeconds(secsToEvent)}`
-  }, {
-    name: 'Consistency Guard (F5)',
-    status: consistency.isViolating ? 'ALERT' : 'SAFE',
-    color: consistency.isViolating ? '#F87171' : '#34D399',
-    desc: `${(consistency.currentRatio * 100).toFixed(1)}% / ${consistency.cap ? consistency.cap * 100 + '%' : 'No'} cap`
-  }, {
-    name: 'Cost Calculator (F4)',
-    status: 'READY',
-    color: '#60A5FA',
-    desc: 'XAG warning enabled'
-  }, {
-    name: 'Rule Centre (F3)',
-    status: '2 PENDING',
-    color: '#FBBF24',
-    desc: 'Acknowledgement required'
-  }].map((f, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '8px 0',
-      borderBottom: i < 3 ? '1px solid #1E293B' : 'none'
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#E2E8F0',
-      fontSize: 13,
-      fontWeight: 600
-    }
-  }, f.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11,
-      marginTop: 2
-    }
-  }, f.desc)), /*#__PURE__*/React.createElement("span", {
-    className: "badge",
-    style: {
-      background: f.color + '22',
-      color: f.color,
-      border: `1px solid ${f.color}55`
-    }
-  }, f.status)))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
-    }
-  }, "OPEN POSITIONS"), MOCK_POSITIONS.map((p, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: '10px 12px',
-      marginBottom: 8,
-      border: p.risk ? '1px solid rgba(239,68,68,0.3)' : '1px solid #1E293B'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "badge",
-    style: {
-      background: p.side === 'BUY' ? '#065F4622' : '#7F1D1D22',
-      color: p.side === 'BUY' ? '#34D399' : '#F87171',
-      border: `1px solid ${p.side === 'BUY' ? '#34D39944' : '#F8717144'}`
-    }
-  }, p.side), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 13
-    }
-  }, p.symbol), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 12
-    }
-  }, p.lots, " lots")), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: p.profit > 0 ? '#34D399' : '#F87171',
-      fontWeight: 700
-    }
-  }, formatCurrency(p.profit))), p.risk && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontSize: 11,
-      marginTop: 6,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "\u26A0\uFE0F"), " At risk during upcoming NFP \u2014 consider closing before 13:20 UTC"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11,
-      marginTop: 8
-    }
-  }, "Connected via TradeLocker API \xB7 Live data"))));
+  }, "\xA9 FundingPips 2026")));
 }
 
-// ============================================================
-// F6: NEWS MONITOR
-// ============================================================
-function NewsMonitor() {
-  const [countdown, setCountdown] = useState(0);
-  const [status, setStatus] = useState('SAFE');
-  useEffect(() => {
-    const tick = () => {
-      const now2 = new Date();
-      const next = NEWS_EVENTS[0];
-      const eventTime = new Date();
-      eventTime.setHours(next.hour, next.minute, 0, 0);
-      const secs = Math.max(0, Math.floor((eventTime - now2) / 1000));
-      setCountdown(secs);
-      if (secs === 0) setStatus('ACTIVE');else if (secs < next.windowMins * 60) setStatus('RESTRICTED');else if (secs < 1800) setStatus('WARNING');else setStatus('SAFE');
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+// ============================================================================
+// TOP BAR COMPONENT
+// ============================================================================
+
+function TopBar() {
+  const [time, setTime] = React.useState(new Date());
+  React.useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
-  const statusConfig = {
-    SAFE: {
-      color: '#34D399',
-      bg: 'rgba(16,185,129,0.1)',
-      border: 'rgba(16,185,129,0.4)',
-      label: '✅ SAFE TO TRADE',
-      glowClass: 'glow-green'
-    },
-    WARNING: {
-      color: '#FBBF24',
-      bg: 'rgba(245,158,11,0.1)',
-      border: 'rgba(245,158,11,0.4)',
-      label: '⚠️ NEWS APPROACHING',
-      glowClass: 'glow-amber'
-    },
-    RESTRICTED: {
-      color: '#F87171',
-      bg: 'rgba(239,68,68,0.15)',
-      border: 'rgba(239,68,68,0.5)',
-      label: '🚫 RESTRICTED WINDOW',
-      glowClass: 'glow-red'
-    },
-    ACTIVE: {
-      color: '#F87171',
-      bg: 'rgba(239,68,68,0.2)',
-      border: 'rgba(239,68,68,0.6)',
-      label: '🔴 NEWS ACTIVE — STOP!',
-      glowClass: 'glow-red pulse-red'
-    }
-  };
-  const sc = statusConfig[status];
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83D\uDCF0 News Monitor"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Real-time countdown to restricted trading windows \xB7 Powered by JBlanked + RapidAPI")), /*#__PURE__*/React.createElement("div", {
-    className: `${sc.glowClass}`,
-    style: {
-      background: sc.bg,
-      border: `2px solid ${sc.border}`,
-      borderRadius: 16,
-      padding: 28,
-      textAlign: 'center',
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: sc.color,
-      fontWeight: 900,
-      fontSize: 20,
-      letterSpacing: 2,
-      marginBottom: 12
-    }
-  }, sc.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: 'white',
-      fontWeight: 900,
-      fontSize: 64,
-      letterSpacing: 8,
-      fontFamily: 'monospace'
-    }
-  }, formatSeconds(countdown)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: sc.color,
-      fontSize: 14,
-      marginTop: 8
-    }
-  }, "Until: ", NEWS_EVENTS[0].name, " (", NEWS_EVENTS[0].currency, ")"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 12,
-      marginTop: 4
-    }
-  }, "Restricted window: ", NEWS_EVENTS[0].windowMins, " mins before & after")), MOCK_POSITIONS.filter(p => p.risk).length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(239,68,68,0.1)',
-      border: '1px solid rgba(239,68,68,0.4)',
-      borderRadius: 10,
-      padding: '14px 18px',
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontWeight: 700,
-      fontSize: 14,
-      marginBottom: 8
-    }
-  }, "\uD83D\uDEA8 Open Position At Risk"), MOCK_POSITIONS.filter(p => p.risk).map((p, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      color: '#FCA5A5',
-      fontSize: 13
-    }
-  }, "Your ", p.symbol, " ", p.side, " (", p.lots, " lots) is open. Holding through the ", NEWS_EVENTS[0].name, " window means profits from this position may NOT count toward your payout. Close by ", NEWS_EVENTS[0].hour, ":", String(NEWS_EVENTS[0].minute - NEWS_EVENTS[0].windowMins).padStart(2, '0'), " UTC."))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "TODAY'S HIGH-IMPACT EVENTS"), NEWS_EVENTS.map((e, i) => {
-    const eTime = new Date();
-    eTime.setHours(e.hour, e.minute, 0);
-    const secsDiff = Math.floor((eTime - new Date()) / 1000);
-    const isPast = secsDiff < 0;
-    const isNext = i === 0;
-    return /*#__PURE__*/React.createElement("div", {
-      key: i,
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        padding: '12px 14px',
-        background: isNext ? 'rgba(59,130,246,0.08)' : '#162032',
-        borderRadius: 8,
-        marginBottom: 8,
-        border: isNext ? '1px solid rgba(59,130,246,0.3)' : '1px solid #1E293B',
-        opacity: isPast ? 0.5 : 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 44,
-        textAlign: 'center'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        color: '#F1F5F9',
-        fontWeight: 700,
-        fontSize: 15
-      }
-    }, e.hour, ":", String(e.minute).padStart(2, '0')), /*#__PURE__*/React.createElement("div", {
-      style: {
-        color: '#475569',
-        fontSize: 10
-      }
-    }, "UTC")), /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 2,
-        height: 36,
-        background: e.impact === 'High' ? '#EF4444' : '#F59E0B',
-        borderRadius: 1
-      }
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: '#F1F5F9',
-        fontWeight: 700,
-        fontSize: 13
-      }
-    }, e.name), /*#__PURE__*/React.createElement("span", {
-      className: "badge",
-      style: {
-        background: '#1E293B',
-        color: '#94A3B8',
-        fontSize: 10
-      }
-    }, e.currency), isNext && /*#__PURE__*/React.createElement("span", {
-      className: "badge tag-blue",
-      style: {
-        fontSize: 10
-      }
-    }, "NEXT")), /*#__PURE__*/React.createElement("div", {
-      style: {
-        color: '#64748B',
-        fontSize: 11,
-        marginTop: 3
-      }
-    }, "Window: \xB1", e.windowMins, " minutes \xB7 ", e.forecast ? `Forecast: ${e.forecast}` : 'No forecast', " ", e.previous ? `· Previous: ${e.previous}` : '')), /*#__PURE__*/React.createElement("div", {
-      style: {
-        textAlign: 'right'
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "badge",
-      style: {
-        background: e.impact === 'High' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
-        color: e.impact === 'High' ? '#F87171' : '#FBBF24',
-        border: `1px solid ${e.impact === 'High' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
-      }
-    }, e.impact), !isPast && /*#__PURE__*/React.createElement("div", {
-      style: {
-        color: '#475569',
-        fontSize: 10,
-        marginTop: 4
-      }
-    }, secsDiff < 3600 ? Math.floor(secsDiff / 60) + 'm' : Math.floor(secsDiff / 3600) + 'h ' + Math.floor(secsDiff % 3600 / 60) + 'm')));
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#334155',
-      fontSize: 11,
-      marginTop: 12,
-      textAlign: 'center'
-    }
-  }, "\uD83D\uDCE1 Live data from JBlanked Calendar API + RapidAPI Economic Calendar \xB7 Updates every 60s \xB7 V2 includes per-currency position matching"));
-}
-
-// ============================================================
-// F5: CONSISTENCY CALCULATOR
-// ============================================================
-function ConsistencyCalculator() {
-  const [payoutType, setPayoutType] = useState('on-demand');
-  const [accountType, setAccountType] = useState('2-step-standard');
-  const calc = calculateConsistency(MOCK_TRADES, payoutType, accountType);
-  const equityCurve = getEquityCurve(MOCK_TRADES);
-  const maxEquity = Math.max(...equityCurve.map(e => Math.abs(e.equity)));
-  const chartW = 480,
-    chartH = 80;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83D\uDCC8 Consistency Rule Calculator"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Live tracking \xB7 Formula: Max Today = (cap \xD7 totalProfit) / (1 \u2212 cap) \u2212 todayPnL")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 12,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 11,
-      display: 'block',
-      marginBottom: 4
-    }
-  }, "ACCOUNT TYPE"), /*#__PURE__*/React.createElement("select", {
-    value: accountType,
-    onChange: e => setAccountType(e.target.value)
-  }, Object.entries(ACCOUNT_TYPES).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
-    key: k,
-    value: k
-  }, v.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 11,
-      display: 'block',
-      marginBottom: 4
-    }
-  }, "PAYOUT TYPE"), /*#__PURE__*/React.createElement("select", {
-    value: payoutType,
-    onChange: e => setPayoutType(e.target.value)
-  }, Object.entries(PAYOUT_TYPES).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
-    key: k,
-    value: k
-  }, v.name))))), calc.isViolating && /*#__PURE__*/React.createElement("div", {
-    className: "glow-red pulse-red",
-    style: {
-      background: 'rgba(239,68,68,0.12)',
-      border: '2px solid rgba(239,68,68,0.5)',
-      borderRadius: 12,
-      padding: '14px 18px',
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontWeight: 800,
-      fontSize: 15
-    }
-  }, "\uD83D\uDEA8 CONSISTENCY RULE VIOLATION"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#FCA5A5',
-      fontSize: 13,
-      marginTop: 6
-    }
-  }, "Your best day (", new Date(calc.bestDayDate).toLocaleDateString('en', {
-    month: 'short',
-    day: 'numeric'
-  }), ": ", /*#__PURE__*/React.createElement("strong", null, formatCurrency(calc.bestDayProfit)), ") is ", /*#__PURE__*/React.createElement("strong", null, (calc.currentRatio * 100).toFixed(1), "%"), " of your total cycle profit \u2014 exceeding the ", /*#__PURE__*/React.createElement("strong", null, calc.cap ? calc.cap * 100 + '%' : '—', "%"), " cap."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#FCA5A5',
-      fontSize: 12,
-      marginTop: 6
-    }
-  }, "\u26A0\uFE0F If you request a payout now, it will be denied. Continue trading to dilute the best-day ratio, or switch to a payout type with no consistency rule.")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
-      gap: 12,
-      marginBottom: 16
-    }
-  }, [{
-    label: 'CYCLE TOTAL PROFIT',
-    value: formatCurrency(calc.totalProfit),
-    color: calc.totalProfit > 0 ? '#34D399' : '#F87171'
-  }, {
-    label: 'BEST DAY PROFIT',
-    value: formatCurrency(calc.bestDayProfit),
-    color: '#60A5FA',
-    sub: calc.bestDayDate ? new Date(calc.bestDayDate).toLocaleDateString('en', {
-      month: 'short',
-      day: 'numeric'
-    }) : ''
-  }, {
-    label: 'CONSISTENCY RATIO',
-    value: calc.hasCap ? `${(calc.currentRatio * 100).toFixed(1)}%` : 'N/A',
-    color: calc.isViolating ? '#F87171' : '#34D399',
-    sub: `Cap: ${calc.cap ? calc.cap * 100 + '%' : 'None'}`
-  }, {
-    label: 'TODAY\'S P&L',
-    value: formatCurrency(calc.todayPnL),
-    color: calc.todayPnL > 0 ? '#34D399' : calc.todayPnL < 0 ? '#F87171' : '#64748B'
-  }, {
-    label: 'MAX PROFIT TODAY',
-    value: calc.hasCap ? calc.maxToday === Infinity ? 'Unlimited' : formatCurrency(calc.maxToday) : 'No Cap',
-    color: '#FBBF24',
-    sub: 'Without violating cap'
-  }, {
-    label: 'TRADING DAYS',
-    value: `${calc.winDays}W / ${calc.daysTraded - calc.winDays}L`,
-    color: '#94A3B8',
-    sub: `${calc.daysTraded} total days`
-  }].map((m, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "card-inner",
-    style: {
-      padding: '12px 14px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: 0.5
-    }
-  }, m.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: m.color,
-      fontWeight: 800,
-      fontSize: 20,
-      margin: '4px 0 2px'
-    }
-  }, m.value), m.sub && /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10
-    }
-  }, m.sub)))), calc.hasCap && /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
+      position: 'fixed',
+      top: 0,
+      left: '240px',
+      right: 0,
+      height: '64px',
+      background: 'var(--bg)',
+      borderBottom: '1px solid var(--brd)',
       display: 'flex',
       justifyContent: 'space-between',
-      marginBottom: 8
+      alignItems: 'center',
+      paddingLeft: '24px',
+      paddingRight: '24px',
+      zIndex: 100
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
     style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700
+      margin: 0,
+      fontSize: '18px',
+      fontWeight: '700',
+      color: 'var(--t1)'
     }
-  }, "CONSISTENCY GAUGE"), /*#__PURE__*/React.createElement("span", {
+  }, "PropEdge Dashboard")), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: calc.isViolating ? '#F87171' : '#34D399',
-      fontSize: 12,
-      fontWeight: 700
-    }
-  }, (calc.currentRatio * 100).toFixed(1), "% used of ", calc.cap * 100, "% cap")), /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-bg",
-    style: {
-      height: 18,
-      borderRadius: 999,
-      position: 'relative'
+      display: 'flex',
+      alignItems: 'center',
+      gap: '24px'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-fill",
     style: {
-      width: Math.min(calc.currentRatio / calc.cap * 100, 100) + '%',
-      background: calc.isViolating ? 'linear-gradient(90deg,#EF4444,#DC2626)' : calc.currentRatio / calc.cap > 0.85 ? 'linear-gradient(90deg,#F59E0B,#D97706)' : 'linear-gradient(90deg,#10B981,#059669)'
+      fontSize: '13px',
+      color: 'var(--t2)',
+      fontFamily: 'monospace',
+      fontWeight: '600'
     }
-  }), /*#__PURE__*/React.createElement("div", {
+  }, time.toLocaleTimeString()), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    style: {
+      position: 'relative',
+      width: '40px',
+      height: '40px',
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M13.73 21a2 2 0 0 1-3.46 0"
+  })), /*#__PURE__*/React.createElement("span", {
     style: {
       position: 'absolute',
-      top: -4,
-      left: '100%',
-      transform: 'translateX(-1px)',
-      width: 2,
-      height: 26,
-      background: '#EF4444',
-      borderRadius: 1
+      top: '4px',
+      right: '4px',
+      width: '8px',
+      height: '8px',
+      background: 'var(--red)',
+      borderRadius: '50%'
     }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginTop: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontSize: 10
-    }
-  }, "0%"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#EF4444',
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "Cap: ", calc.cap * 100, "%"))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "DAILY P&L \u2014 CURRENT CYCLE"), /*#__PURE__*/React.createElement("svg", {
-    width: "100%",
-    viewBox: `0 0 ${MOCK_TRADES.length * 52} 100`,
-    style: {
-      overflow: 'visible'
-    }
-  }, MOCK_TRADES.map((t, i) => {
-    const maxV = Math.max(...MOCK_TRADES.map(d => Math.abs(d.profit)), 1);
-    const barH = Math.abs(t.profit) / maxV * 44;
-    const x = i * 52 + 4;
-    const isToday = t.date === new Date().toISOString().split('T')[0];
-    const isBest = t.profit === Math.max(...MOCK_TRADES.map(d => d.profit));
-    return /*#__PURE__*/React.createElement("g", {
-      key: i
-    }, /*#__PURE__*/React.createElement("rect", {
-      x: x,
-      y: t.profit >= 0 ? 50 - barH : 50,
-      width: 44,
-      height: barH || 2,
-      fill: isBest ? '#F59E0B' : t.profit > 0 ? '#10B981' : '#EF4444',
-      opacity: isToday ? 1 : 0.7,
-      rx: 4
-    }), isBest && /*#__PURE__*/React.createElement("text", {
-      x: x + 22,
-      y: 50 - barH - 5,
-      textAnchor: "middle",
-      fill: "#F59E0B",
-      fontSize: "8",
-      fontWeight: "700"
-    }, "BEST"), /*#__PURE__*/React.createElement("text", {
-      x: x + 22,
-      y: 96,
-      textAnchor: "middle",
-      fill: "#475569",
-      fontSize: "8"
-    }, t.date.slice(5)), /*#__PURE__*/React.createElement("text", {
-      x: x + 22,
-      y: t.profit >= 0 ? 50 - barH - 2 : 50 + barH + 10,
-      textAnchor: "middle",
-      fill: t.profit > 0 ? '#34D399' : '#F87171',
-      fontSize: "7"
-    }, t.profit > 0 ? '+' : '', (t.profit / 1000).toFixed(1), "K"));
-  }), /*#__PURE__*/React.createElement("line", {
-    x1: 0,
-    y1: 50,
-    x2: MOCK_TRADES.length * 52,
-    y2: 50,
-    stroke: "#1E293B",
-    strokeWidth: 1
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 16,
-      marginTop: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 10,
-      height: 10,
-      background: '#F59E0B',
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 11
-    }
-  }, "Best Day")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 10,
-      height: 10,
-      background: '#10B981',
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 11
-    }
-  }, "Profit")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 10,
-      height: 10,
-      background: '#EF4444',
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 11
-    }
-  }, "Loss")))));
+  }))));
 }
 
-// ============================================================
-// F4: COST CALCULATOR
-// ============================================================
-function CostCalculator() {
-  const [instrument, setInstrument] = useState('EURUSD');
-  const [lotSize, setLotSize] = useState(1);
-  const [accountType, setAccountType] = useState('2-step-standard');
-  const [accountSize, setAccountSize] = useState(25000);
-  const result = calculateTrueCost(instrument, lotSize, accountType, accountSize);
+// ============================================================================
+// DASHBOARD TAB
+// ============================================================================
+
+function Dashboard() {
+  const totalProfit = MOCK_TRADES.reduce((sum, d) => sum + d.profit, 0);
+  const todayProfit = MOCK_TRADES[MOCK_TRADES.length - 1]?.profit || 0;
+  const accountType = ACCOUNT_TYPES.find(a => a.id === '2-step-pro');
+  const consistencyRatio = calculateConsistency(totalProfit, todayProfit, accountType.consistencyCap);
+  const maxToday = accountType.consistencyCap * totalProfit / (1 - accountType.consistencyCap) - Math.max(todayProfit, 0);
+  const equityData = MOCK_TRADES.map((d, i) => ({
+    date: d.date,
+    equity: 25000 + MOCK_TRADES.slice(0, i + 1).reduce((sum, t) => sum + t.profit, 0)
+  }));
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: 24
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      marginBottom: 20
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
     }
-  }, /*#__PURE__*/React.createElement("h1", {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
     style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
+      marginBottom: '8px'
     }
-  }, "\uD83D\uDCB8 True Cost Calculator"), /*#__PURE__*/React.createElement("div", {
+  }, "Cycle Profit"), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--grn)',
+      marginBottom: '4px'
     }
-  }, "Know your REAL entry cost before every trade \xB7 Spread + Commission + Daily limit impact")), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(totalProfit)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "Feb 1-28 2026")), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Consistency Score"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--acc)',
+      marginBottom: '4px'
+    }
+  }, (consistencyRatio * 100).toFixed(1), "%"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "vs ", (accountType.consistencyCap * 100).toFixed(0), "% cap")), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Max Today"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--amb)',
+      marginBottom: '4px'
+    }
+  }, formatCurrency(Math.max(0, maxToday))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "Remaining cushion")), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Next News"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--acc)',
+      marginBottom: '4px'
+    }
+  }, "1h 30m"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "FOMC Decision"))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: '24px',
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Equity Curve"), /*#__PURE__*/React.createElement(EquityChart, {
+    data: equityData
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '340px 1fr',
-      gap: 16
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
-      padding: 18
+      padding: '20px'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("h3", {
     style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
     }
-  }, "TRADE SETUP"), [{
-    label: 'INSTRUMENT',
-    content: /*#__PURE__*/React.createElement("select", {
-      value: instrument,
-      onChange: e => setInstrument(e.target.value)
-    }, Object.entries(INSTRUMENTS).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
-      key: k,
-      value: k
-    }, v.name)))
-  }, {
-    label: 'LOT SIZE',
-    content: /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      min: 0.01,
-      step: 0.01,
-      value: lotSize,
-      onChange: e => setLotSize(parseFloat(e.target.value) || 0)
-    })
-  }, {
-    label: 'ACCOUNT TYPE',
-    content: /*#__PURE__*/React.createElement("select", {
-      value: accountType,
-      onChange: e => setAccountType(e.target.value)
-    }, Object.entries(ACCOUNT_TYPES).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
-      key: k,
-      value: k
-    }, v.name)))
-  }, {
-    label: 'ACCOUNT SIZE ($)',
-    content: /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      step: 1000,
-      value: accountSize,
-      onChange: e => setAccountSize(parseInt(e.target.value) || 0)
-    })
-  }].map((f, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("label", {
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: 0.5,
-      display: 'block',
-      marginBottom: 4
-    }
-  }, f.label), f.content)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: '#060B18',
-      borderRadius: 8,
-      padding: '10px 12px',
-      marginTop: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 11,
-      marginBottom: 4
-    }
-  }, "INSTRUMENT SPECS"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 3
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontSize: 12
-    }
-  }, "Current Spread"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 12
-    }
-  }, INSTRUMENTS[instrument].spread, " pips")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 3
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontSize: 12
-    }
-  }, "Pip Value/Lot"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: INSTRUMENTS[instrument].pipValue >= 50 ? '#F87171' : '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 12
-    }
-  }, "$", INSTRUMENTS[instrument].pipValue)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontSize: 12
-    }
-  }, "Category"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#60A5FA',
-      fontSize: 12
-    }
-  }, INSTRUMENTS[instrument].category)))), /*#__PURE__*/React.createElement("div", {
+  }, "Feature Status"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 12
-    }
-  }, result?.warning && /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(239,68,68,0.12)',
-      border: '2px solid rgba(239,68,68,0.5)',
-      borderRadius: 12,
-      padding: '14px 18px'
+      gap: '12px'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontWeight: 700,
-      fontSize: 14,
-      marginBottom: 4
-    }
-  }, "\uD83D\uDEA8 HIGH RISK INSTRUMENT WARNING"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#FCA5A5',
-      fontSize: 13
-    }
-  }, result.warning)), result && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "COST BREAKDOWN"), [{
-    label: 'Spread Cost',
-    value: formatCurrency(result.spreadCost),
-    sub: `${result.spread} pips × $${result.pipValue}/pip × ${lotSize} lots`,
-    color: '#F87171'
-  }, {
-    label: 'Commission (est.)',
-    value: formatCurrency(result.commission),
-    sub: '$2.00/lot round-trip (industry standard)',
-    color: '#FBBF24'
-  }, {
-    label: '───────────────',
-    value: '',
-    sub: '',
-    color: 'transparent'
-  }, {
-    label: 'TOTAL ENTRY COST',
-    value: formatCurrency(result.totalEntryCost),
-    sub: 'To break even, price must move this far',
-    color: '#F87171',
-    bold: true
-  }].map((r, i) => r.label.startsWith('─') ? /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      borderTop: '1px solid #1E293B',
-      margin: '8px 0'
-    }
-  }) : /*#__PURE__*/React.createElement("div", {
-    key: i,
     style: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '6px 0'
+      padding: '10px',
+      background: 'var(--bg2)',
+      borderRadius: '6px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--t1)'
+    }
+  }, "Trading Active"), /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
+  }, "ACTIVE")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '10px',
+      background: 'var(--bg2)',
+      borderRadius: '6px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--t1)'
+    }
+  }, "Payout Available"), /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
+  }, "YES")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '10px',
+      background: 'var(--bg2)',
+      borderRadius: '6px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '13px',
+      color: 'var(--t1)'
+    }
+  }, "Rules Acknowledged"), /*#__PURE__*/React.createElement("span", {
+    className: "badge br"
+  }, "2/3")))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Open Positions (", MOCK_POSITIONS.length, ")"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
+    }
+  }, MOCK_POSITIONS.map(pos => /*#__PURE__*/React.createElement("div", {
+    key: pos.id,
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '10px',
+      background: 'var(--bg2)',
+      borderRadius: '6px'
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
-      color: r.bold ? '#E2E8F0' : '#94A3B8',
-      fontWeight: r.bold ? 700 : 400,
-      fontSize: r.bold ? 14 : 13
+      fontSize: '13px',
+      fontWeight: '600',
+      color: 'var(--t1)'
     }
-  }, r.label), /*#__PURE__*/React.createElement("div", {
+  }, pos.symbol, " ", pos.type), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#334155',
-      fontSize: 11
+      fontSize: '11px',
+      color: 'var(--t3)'
     }
-  }, r.sub)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: r.color,
-      fontWeight: r.bold ? 800 : 700,
-      fontSize: r.bold ? 20 : 14
-    }
-  }, r.value)))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      letterSpacing: 1
-    }
-  }, "DAILY LIMIT IMPACT"), /*#__PURE__*/React.createElement("span", {
-    className: `badge ${result.riskLevel === 'HIGH' ? 'tag-red' : result.riskLevel === 'MEDIUM' ? 'tag-amber' : 'tag-green'}`
-  }, result.riskLevel, " RISK")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 13
-    }
-  }, "Daily Loss Limit (", ACCOUNT_TYPES[accountType].dailyLimit * 100, "%)"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700
-    }
-  }, formatCurrency(result.dailyLimitUSD))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 13
-    }
-  }, "Entry Cost Consumes"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: result.riskLevel === 'HIGH' ? '#F87171' : '#FBBF24',
-      fontWeight: 800,
-      fontSize: 16
-    }
-  }, result.pctOfDailyLimit.toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-bg",
-    style: {
-      height: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "progress-bar-fill",
-    style: {
-      width: Math.min(result.pctOfDailyLimit, 100) + '%',
-      background: result.riskLevel === 'HIGH' ? '#EF4444' : result.riskLevel === 'MEDIUM' ? '#F59E0B' : '#10B981'
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11,
-      marginTop: 8
-    }
-  }, "Break-even: price must move ", result.breaksEvenAt.toFixed(1), " pips in your favor before you profit"))))));
-}
-
-// ============================================================
-// F3: RULE ACKNOWLEDGEMENT
-// ============================================================
-function RuleAcknowledgement() {
-  const [rules, setRules] = useState(MOCK_RULES);
-  const [modal, setModal] = useState(null);
-  const [history, setHistory] = useState([]);
-  const acknowledge = ruleId => {
-    const rule = rules.find(r => r.id === ruleId);
-    setRules(prev => prev.map(r => r.id === ruleId ? {
-      ...r,
-      acknowledged: true
-    } : r));
-    setHistory(prev => [{
-      rule: rule.title,
-      time: new Date().toLocaleTimeString(),
-      ip: '192.168.1.x',
-      id: ruleId
-    }, ...prev]);
-    setModal(null);
-  };
-  const pending = rules.filter(r => !r.acknowledged);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83D\uDCCB Rule Acknowledgement Centre"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Every rule change \u2014 timestamped, IP-logged, legally binding \xB7 Solves FundingTicks' fatal mistake")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3,1fr)',
-      gap: 12,
-      marginBottom: 16
-    }
-  }, [{
-    label: 'PENDING',
-    value: pending.length,
-    color: pending.length > 0 ? '#F87171' : '#34D399'
-  }, {
-    label: 'ACKNOWLEDGED',
-    value: rules.filter(r => r.acknowledged).length,
-    color: '#34D399'
-  }, {
-    label: 'TOTAL RULES',
-    value: rules.length,
-    color: '#60A5FA'
-  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "card-inner",
-    style: {
-      padding: '14px 16px',
-      textAlign: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: 1
-    }
-  }, s.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: s.color,
-      fontWeight: 900,
-      fontSize: 32,
-      margin: '4px 0'
-    }
-  }, s.value)))), pending.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#FBBF24',
-      fontSize: 13,
-      fontWeight: 700,
-      marginBottom: 10
-    }
-  }, "\u26A0\uFE0F Requires Your Acknowledgement"), pending.map(rule => /*#__PURE__*/React.createElement("div", {
-    key: rule.id,
-    className: "glow-amber",
-    style: {
-      background: 'rgba(245,158,11,0.08)',
-      border: '1px solid rgba(245,158,11,0.35)',
-      borderRadius: 12,
-      padding: '16px 18px',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 15
-    }
-  }, rule.title), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 8,
-      marginTop: 4
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "badge tag-amber",
-    style: {
-      fontSize: 10
-    }
-  }, rule.category.toUpperCase()), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 11
-    }
-  }, "Effective: ", rule.effectiveDate), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#64748B',
-      fontSize: 11
-    }
-  }, "Affects: ", rule.affectedAccounts.join(', ')))), /*#__PURE__*/React.createElement("button", {
-    className: "btn-amber",
-    style: {
-      padding: '8px 16px',
-      fontSize: 13
-    },
-    onClick: () => setModal(rule)
-  }, "Review & Acknowledge")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(239,68,68,0.08)',
-      borderRadius: 8,
-      padding: '10px 12px',
-      border: '1px solid rgba(239,68,68,0.2)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontSize: 10,
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "OLD RULE"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#CBD5E1',
-      fontSize: 12,
-      lineHeight: 1.6
-    }
-  }, rule.oldText)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(16,185,129,0.08)',
-      borderRadius: 8,
-      padding: '10px 12px',
-      border: '1px solid rgba(16,185,129,0.2)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#34D399',
-      fontSize: 10,
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "NEW RULE"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#CBD5E1',
-      fontSize: 12,
-      lineHeight: 1.6
-    }
-  }, rule.newText)))))), rules.filter(r => r.acknowledged).length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
-    }
-  }, "ACKNOWLEDGED RULES"), rules.filter(r => r.acknowledged).map(rule => /*#__PURE__*/React.createElement("div", {
-    key: rule.id,
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '10px 0',
-      borderBottom: '1px solid #1E293B'
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#E2E8F0',
-      fontSize: 13,
-      fontWeight: 600
-    }
-  }, rule.title), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11,
-      marginTop: 2
-    }
-  }, "Effective: ", rule.effectiveDate, " \xB7 ", rule.affectedAccounts.join(', '))), /*#__PURE__*/React.createElement("span", {
-    className: "badge tag-green",
-    style: {
-      fontSize: 11
-    }
-  }, "\u2713 ACKNOWLEDGED")))), history.length > 0 && /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
-    }
-  }, "AUDIT LOG"), history.map((h, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      gap: 12,
-      padding: '8px 0',
-      borderBottom: '1px solid #1E293B',
-      fontSize: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#34D399'
-    }
-  }, "\u2713"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#CBD5E1',
-      flex: 1
-    }
-  }, h.rule), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569'
-    }
-  }, h.time), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontFamily: 'monospace'
-    }
-  }, "IP: ", h.ip)))), modal && /*#__PURE__*/React.createElement("div", {
-    className: "modal-overlay",
-    onClick: () => setModal(null)
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "modal-box",
-    style: {
-      padding: 28
-    },
-    onClick: e => e.stopPropagation()
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 18,
-      marginBottom: 4
-    }
-  }, modal.title), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 12,
-      marginBottom: 20
-    }
-  }, "Effective ", modal.effectiveDate, " \xB7 Affects: ", modal.affectedAccounts.join(', ')), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 12,
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: 14,
-      border: '1px solid rgba(239,68,68,0.3)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontSize: 11,
-      fontWeight: 700,
-      marginBottom: 6
-    }
-  }, "PREVIOUS RULE"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#CBD5E1',
-      fontSize: 13,
-      lineHeight: 1.7
-    }
-  }, modal.oldText)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: 14,
-      border: '1px solid rgba(16,185,129,0.3)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#34D399',
-      fontSize: 11,
-      fontWeight: 700,
-      marginBottom: 6
-    }
-  }, "NEW RULE"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#CBD5E1',
-      fontSize: 13,
-      lineHeight: 1.7
-    }
-  }, modal.newText))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: 12,
-      marginBottom: 20,
-      fontSize: 12,
-      color: '#64748B',
-      border: '1px solid #1E293B'
-    }
-  }, "By clicking Acknowledge, you confirm you have read and understood this rule change. This action will be logged with your account ID, timestamp, and IP address as proof of notification."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    style: {
-      flex: 1,
-      padding: 12,
-      fontSize: 14
-    },
-    onClick: () => acknowledge(modal.id)
-  }, "\u2713 I Acknowledge This Rule Change"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setModal(null),
-    style: {
-      padding: '12px 20px',
-      background: '#1E293B',
-      border: 'none',
-      color: '#94A3B8',
-      borderRadius: 8,
-      cursor: 'pointer',
-      fontSize: 14
-    }
-  }, "Cancel")))));
-}
-
-// ============================================================
-// AI COACH (Knowledge Work Plugins Integration)
-// ============================================================
-function AICoach() {
-  const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(false);
-  const simulate = () => {
-    setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      setGenerated(true);
-    }, 2200);
-  };
-  const insights = [{
-    icon: '📉',
-    title: 'Overtrade Pattern Detected',
-    severity: 'HIGH',
-    desc: 'You placed 5 trades on Feb 19 (your only losing day). Your average trades on losing days is 4.8 vs 2.5 on winning days. Stop trading after 2 consecutive losses.',
-    action: 'Set a max 3-trade daily limit'
-  }, {
-    icon: '⚡',
-    title: 'Best Performance: London Open',
-    severity: 'MEDIUM',
-    desc: '73% of your profitable trades occur 07:00–10:00 UTC (London Open). Your afternoon trades (13:00–17:00) have a 38% win rate. Focus your energy on London session.',
-    action: 'Trade only 07:00–10:00 UTC'
-  }, {
-    icon: '⚠️',
-    title: 'XAG/USD Position Sizing Risk',
-    severity: 'HIGH',
-    desc: 'You traded XAG 3 times this cycle. The $50/pip value means you are taking on 5x more spread risk than EURUSD. Two of these trades cost $175+ in entry costs alone.',
-    action: 'Avoid XAG until fully funded'
-  }, {
-    icon: '🎯',
-    title: 'Consistency Cap Approaching',
-    severity: 'CRITICAL',
-    desc: `Your Feb 20 profit ($1,500) is now ${(1500 / 3780 * 100).toFixed(1)}% of total cycle profit — exceeding your 35% on-demand cap. You cannot request an on-demand payout right now.`,
-    action: 'Switch to bi-weekly payout type'
-  }];
-  const severityColors = {
-    CRITICAL: '#F87171',
-    HIGH: '#FBBF24',
-    MEDIUM: '#60A5FA',
-    LOW: '#34D399'
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83E\uDD16 AI Trade Coach"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Powered by Knowledge Work Plugins (Customer Support + Data + Productivity)")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4,1fr)',
-      gap: 12,
-      marginBottom: 20
-    }
-  }, [{
-    label: 'COACHING SCORE',
-    value: '64/100',
-    color: '#FBBF24',
-    icon: '🎯'
-  }, {
-    label: 'WIN RATE',
-    value: '58%',
-    color: '#34D399',
-    icon: '📈'
-  }, {
-    label: 'PROFIT FACTOR',
-    value: '1.82',
-    color: '#60A5FA',
-    icon: '⚡'
-  }, {
-    label: 'MAX DRAWDOWN',
-    value: '-8.4%',
-    color: '#F87171',
-    icon: '📉'
-  }].map((m, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "stat-card"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, m.label), /*#__PURE__*/React.createElement("span", null, m.icon)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: m.color,
-      fontWeight: 800,
-      fontSize: 22,
-      margin: '8px 0 2px'
-    }
-  }, m.value)))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
-    }
-  }, "AI-IDENTIFIED PATTERNS & RECOMMENDATIONS"), insights.map((ins, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "card",
-    style: {
-      padding: 16,
-      marginBottom: 10,
-      borderLeft: `3px solid ${severityColors[ins.severity]}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 6
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 18
-    }
-  }, ins.icon), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 14
-    }
-  }, ins.title)), /*#__PURE__*/React.createElement("span", {
-    className: "badge",
-    style: {
-      background: severityColors[ins.severity] + '22',
-      color: severityColors[ins.severity],
-      border: `1px solid ${severityColors[ins.severity]}44`,
-      fontSize: 10
-    }
-  }, ins.severity)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 13,
-      lineHeight: 1.6,
-      marginBottom: 8
-    }
-  }, ins.desc), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#34D399',
-      fontSize: 11
-    }
-  }, "\u2192"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#34D399',
-      fontSize: 12,
-      fontWeight: 600
-    }
-  }, "Action: ", ins.action))))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 8,
-      letterSpacing: 1
-    }
-  }, "GENERATE IMPROVEMENT PLAN"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginBottom: 14
-    }
-  }, "Uses the Skills repo (docx skill) to generate a personalized 30-day trading improvement plan based on your performance data"), !generated ? /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    style: {
-      padding: '10px 20px',
-      fontSize: 13,
-      opacity: generating ? 0.7 : 1
-    },
-    onClick: simulate,
-    disabled: generating
-  }, generating ? '⏳ Generating Plan...' : '📄 Generate My Improvement Plan (DOCX)') : /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: 'rgba(16,185,129,0.1)',
-      border: '1px solid rgba(16,185,129,0.3)',
-      borderRadius: 8,
-      padding: '12px 16px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#34D399',
-      fontWeight: 700,
-      fontSize: 13
-    }
-  }, "\u2713 Improvement Plan Generated"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11
-    }
-  }, "PropEdge_ImprovementPlan_Feb2026.docx \xB7 4 pages")), /*#__PURE__*/React.createElement("button", {
-    className: "btn-success",
-    style: {
-      padding: '8px 16px',
-      fontSize: 12
-    }
-  }, "Download"))));
-}
-
-// ============================================================
-// ANALYTICS (Financial Services Plugins Integration)
-// ============================================================
-function Analytics() {
-  const equityCurve = getEquityCurve(MOCK_TRADES);
-  const maxEquity = Math.max(...equityCurve.map(e => e.equity));
-  const chartW = 560,
-    chartH = 100;
-  const pts = equityCurve.map((e, i) => {
-    const x = i / (equityCurve.length - 1) * chartW;
-    const y = chartH - Math.max(0, e.equity / maxEquity) * (chartH - 10) - 5;
-    return `${x},${y}`;
-  }).join(' ');
-  const instruments = [{
-    pair: 'XAUUSD',
-    trades: 8,
-    winRate: 75,
-    pnl: 2100,
-    avgRR: 2.1
-  }, {
-    pair: 'EURUSD',
-    trades: 12,
-    winRate: 58,
-    pnl: 980,
-    avgRR: 1.6
-  }, {
-    pair: 'USDJPY',
-    trades: 6,
-    winRate: 67,
-    pnl: 560,
-    avgRR: 1.8
-  }, {
-    pair: 'XAGUSD',
-    trades: 3,
-    winRate: 33,
-    pnl: -340,
-    avgRR: 0.8
-  }];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83D\uDCCA Advanced Analytics"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Powered by Financial Services Plugins (Sharpe \xB7 Sortino \xB7 Drawdown \xB7 Risk Metrics)")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(5,1fr)',
-      gap: 12,
-      marginBottom: 16
-    }
-  }, [{
-    label: 'SHARPE RATIO',
-    value: '1.84',
-    color: '#34D399',
-    sub: 'Good (>1.0)'
-  }, {
-    label: 'SORTINO RATIO',
-    value: '2.31',
-    color: '#34D399',
-    sub: 'Strong'
-  }, {
-    label: 'MAX DRAWDOWN',
-    value: '-8.4%',
-    color: '#F87171',
-    sub: 'Within limit'
-  }, {
-    label: 'WIN RATE',
-    value: '58%',
-    color: '#60A5FA',
-    sub: '14/24 trades'
-  }, {
-    label: 'PROFIT FACTOR',
-    value: '1.82',
-    color: '#FBBF24',
-    sub: 'Positive edge'
-  }].map((m, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    className: "card-inner",
-    style: {
-      padding: '12px 14px',
-      textAlign: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 9,
-      fontWeight: 700,
-      letterSpacing: 0.5
-    }
-  }, m.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: m.color,
-      fontWeight: 800,
-      fontSize: 22,
-      margin: '6px 0 2px'
-    }
-  }, m.value), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#334155',
-      fontSize: 10
-    }
-  }, m.sub)))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "EQUITY CURVE"), /*#__PURE__*/React.createElement("svg", {
-    width: "100%",
-    viewBox: `0 0 ${chartW} ${chartH + 20}`
-  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
-    id: "eqGrad",
-    x1: "0",
-    y1: "0",
-    x2: "0",
-    y2: "1"
-  }, /*#__PURE__*/React.createElement("stop", {
-    offset: "0%",
-    stopColor: "#3B82F6",
-    stopOpacity: "0.4"
-  }), /*#__PURE__*/React.createElement("stop", {
-    offset: "100%",
-    stopColor: "#3B82F6",
-    stopOpacity: "0.02"
-  }))), /*#__PURE__*/React.createElement("polyline", {
-    points: pts + ` ${chartW},${chartH} 0,${chartH}`,
-    fill: "url(#eqGrad)",
-    stroke: "none"
-  }), /*#__PURE__*/React.createElement("polyline", {
-    points: pts,
-    fill: "none",
-    stroke: "#3B82F6",
-    strokeWidth: "2"
-  }), equityCurve.map((e, i) => {
-    const x = i / (equityCurve.length - 1) * chartW;
-    const y = chartH - Math.max(0, e.equity / maxEquity) * (chartH - 10) - 5;
-    return /*#__PURE__*/React.createElement("circle", {
-      key: i,
-      cx: x,
-      cy: y,
-      r: 3,
-      fill: "#3B82F6"
-    });
-  }), equityCurve.map((e, i) => /*#__PURE__*/React.createElement("text", {
-    key: i,
-    x: i / (equityCurve.length - 1) * chartW,
-    y: chartH + 14,
-    textAnchor: "middle",
-    fill: "#334155",
-    fontSize: 8
-  }, e.date)))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "PERFORMANCE BY INSTRUMENT"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr',
-      gap: 0
-    }
-  }, ['PAIR', 'TRADES', 'WIN RATE', 'P&L', 'AVG R:R'].map((h, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700,
-      padding: '6px 8px',
-      borderBottom: '1px solid #1E293B',
-      letterSpacing: 0.5
-    }
-  }, h)), instruments.map((ins, i) => [ins.pair, ins.trades, ins.winRate + '%', formatCurrency(ins.pnl), ins.avgRR + 'R'].map((v, j) => /*#__PURE__*/React.createElement("div", {
-    key: `${i}-${j}`,
-    style: {
-      color: j === 0 ? '#F1F5F9' : j === 3 ? ins.pnl > 0 ? '#34D399' : '#F87171' : '#94A3B8',
-      fontSize: 13,
-      fontWeight: j === 0 ? 700 : 400,
-      padding: '8px 8px',
-      borderBottom: '1px solid #1E293B'
-    }
-  }, v)))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F87171',
-      fontSize: 12,
-      marginTop: 10
-    }
-  }, "\u26A0\uFE0F XAG/USD showing negative P&L \u2014 consider avoiding. High spread cost destroys edge.")), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "ACCOUNT SCALING PROJECTION (Financial Services Plugin)"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4,1fr)',
-      gap: 10
-    }
-  }, [{
-    stage: 'Current',
-    size: '$25K',
-    profit: '$3,780',
-    split: '80%'
-  }, {
-    stage: 'Scale ×2',
-    size: '$50K',
-    profit: '$7,560',
-    split: '85%'
-  }, {
-    stage: 'Scale ×4',
-    size: '$100K',
-    profit: '$15,120',
-    split: '90%'
-  }, {
-    stage: 'Max Scale',
-    size: '$200K',
-    profit: '$30,240',
-    split: '100%'
-  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      background: i === 0 ? 'rgba(59,130,246,0.1)' : '#162032',
-      border: `1px solid ${i === 0 ? 'rgba(59,130,246,0.3)' : '#1E293B'}`,
-      borderRadius: 8,
-      padding: '12px 14px',
-      textAlign: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10,
-      fontWeight: 700,
-      marginBottom: 6
-    }
-  }, s.stage.toUpperCase()), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 16
-    }
-  }, s.size), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#34D399',
-      fontSize: 12,
-      marginTop: 4
-    }
-  }, s.profit, "/cycle"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#60A5FA',
-      fontSize: 11,
-      marginTop: 2
-    }
-  }, s.split, " split"))))));
-}
-
-// ============================================================
-// REPORTS (Skills Repo Integration)
-// ============================================================
-function Reports() {
-  const [states, setStates] = useState({});
-  const generate = key => {
-    setStates(s => ({
-      ...s,
-      [key]: 'loading'
-    }));
-    setTimeout(() => setStates(s => ({
-      ...s,
-      [key]: 'done'
-    })), 2000);
-  };
-  const reports = [{
-    key: 'pdf',
-    icon: '📄',
-    label: 'Monthly Performance Report',
-    format: 'PDF',
-    size: '~1.2MB',
-    skill: 'pdf skill',
-    color: '#F87171',
-    desc: 'Full monthly overview: P&L, win rate, best/worst trades, consistency analysis, charts. Uses Skills repo pdf skill.'
-  }, {
-    key: 'xlsx',
-    icon: '📊',
-    label: 'Trade Journal Export',
-    format: 'XLSX',
-    size: '~0.4MB',
-    skill: 'xlsx skill',
-    color: '#34D399',
-    desc: 'Complete trade history with formulas: daily P&L, running equity, R:R calculations, instrument breakdown. Uses Skills repo xlsx skill.'
-  }, {
-    key: 'pptx',
-    icon: '📽️',
-    label: 'Quarterly Review Deck',
-    format: 'PPTX',
-    size: '~3.2MB',
-    skill: 'pptx skill',
-    color: '#60A5FA',
-    desc: '12-slide performance presentation: equity curve, stats, AI insights, improvement roadmap. Uses Skills repo pptx skill.'
-  }, {
-    key: 'docx',
-    icon: '📝',
-    label: 'Trading Improvement Plan',
-    format: 'DOCX',
-    size: '~0.8MB',
-    skill: 'docx skill',
-    color: '#FBBF24',
-    desc: 'AI-generated 30-day improvement plan based on your patterns: specific actions, targets, rules to follow. Uses Skills repo docx skill.'
-  }];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83D\uDCC4 Auto Report Generator"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "Powered by Skills Repo (pdf \xB7 xlsx \xB7 pptx \xB7 docx) + Financial Services Plugins data")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 14
-    }
-  }, reports.map(r => /*#__PURE__*/React.createElement("div", {
-    key: r.key,
-    className: "card",
-    style: {
-      padding: 20
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 28
-    }
-  }, r.icon), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 700,
-      fontSize: 14
-    }
-  }, r.label), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 6,
-      marginTop: 3
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "badge",
-    style: {
-      background: r.color + '22',
-      color: r.color,
-      border: `1px solid ${r.color}44`,
-      fontSize: 10
-    }
-  }, r.format), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#475569',
-      fontSize: 11
-    }
-  }, r.size))))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 12,
-      lineHeight: 1.6,
-      marginBottom: 14
-    }
-  }, r.desc), /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: '#060B18',
-      borderRadius: 6,
-      padding: '6px 10px',
-      marginBottom: 12,
-      fontSize: 11,
-      color: '#334155',
-      fontFamily: 'monospace'
-    }
-  }, "Uses: anthropics/skills \u2192 ", r.skill), states[r.key] === 'done' ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      background: 'rgba(16,185,129,0.1)',
-      border: '1px solid rgba(16,185,129,0.3)',
-      borderRadius: 8,
-      padding: '8px 12px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#34D399',
-      fontSize: 12,
-      fontWeight: 700
-    }
-  }, "\u2713 Ready"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 10
-    }
-  }, "PropEdge_Report_Feb2026.", r.key === 'pptx' ? 'pptx' : r.key)), /*#__PURE__*/React.createElement("button", {
-    className: "btn-success",
-    style: {
-      padding: '8px 14px',
-      fontSize: 12,
-      whiteSpace: 'nowrap'
-    }
-  }, "\u2B07 Download")) : /*#__PURE__*/React.createElement("button", {
-    className: "btn-primary",
-    style: {
-      padding: '10px 16px',
-      fontSize: 13,
-      width: '100%',
-      opacity: states[r.key] === 'loading' ? 0.7 : 1
-    },
-    onClick: () => generate(r.key),
-    disabled: states[r.key] === 'loading'
-  }, states[r.key] === 'loading' ? '⏳ Generating...' : `Generate ${r.format} Report`)))), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginTop: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "ANTHROPIC REPOS INTEGRATION MAP"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3,1fr)',
-      gap: 12
-    }
-  }, [{
-    repo: 'anthropics/skills',
-    color: '#34D399',
-    uses: ['pdf skill → Reports & certificates', 'xlsx skill → Trade journal exports', 'pptx skill → Performance decks', 'docx skill → Improvement plans']
-  }, {
-    repo: 'anthropics/knowledge-work-plugins',
-    color: '#60A5FA',
-    uses: ['Data plugin → Trade analytics engine', 'Customer Support → AI coaching bot', 'Productivity → Challenge tracker', 'Legal → Rule compliance framework']
-  }, {
-    repo: 'anthropics/financial-services-plugins',
-    color: '#FBBF24',
-    uses: ['Risk metrics → Sharpe/Sortino', 'Financial modeling → Scaling projections', 'Spread analysis → Cost calculator', 'Portfolio analytics → Multi-account view']
-  }].map((r, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: '14px 16px',
-      border: `1px solid ${r.color}33`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: r.color,
-      fontWeight: 700,
-      fontSize: 12,
-      marginBottom: 8,
-      fontFamily: 'monospace'
-    }
-  }, r.repo), r.uses.map((u, j) => /*#__PURE__*/React.createElement("div", {
-    key: j,
-    style: {
-      color: '#64748B',
-      fontSize: 11,
-      padding: '3px 0',
-      borderBottom: '1px solid #1E293B',
-      display: 'flex',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: r.color
-    }
-  }, "\u203A"), u)))))));
-}
-
-// ============================================================
-// COMMUNITY
-// ============================================================
-function Community() {
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 20
-    }
-  }, /*#__PURE__*/React.createElement("h1", {
-    style: {
-      color: '#F1F5F9',
-      fontWeight: 800,
-      fontSize: 22,
-      margin: 0
-    }
-  }, "\uD83C\uDFC6 Community Leaderboard"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#64748B',
-      fontSize: 13,
-      marginTop: 4
-    }
-  }, "FundingPips Funded Traders \xB7 This Month \xB7 Powered by Knowledge Work Marketing Plugin")), /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 18,
-      marginBottom: 16
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 14,
-      letterSpacing: 1
-    }
-  }, "TOP FUNDED TRADERS \u2014 FEBRUARY 2026"), MOCK_LEADERBOARD.map((t, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-      padding: '12px 14px',
-      background: t.isYou ? 'rgba(59,130,246,0.1)' : '#162032',
-      borderRadius: 8,
-      marginBottom: 8,
-      border: t.isYou ? '1px solid rgba(59,130,246,0.3)' : '1px solid #1E293B'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: '50%',
-      background: i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#CD7F32' : '#1E293B',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: 900,
-      fontSize: 14,
-      color: i < 3 ? '#000' : '#64748B'
-    }
-  }, i < 3 ? ['🥇', '🥈', '🥉'][i] : t.rank), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18
-    }
-  }, t.country), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: t.isYou ? '#60A5FA' : '#F1F5F9',
-      fontWeight: t.isYou ? 800 : 600,
-      fontSize: 14
-    }
-  }, t.name, " ", t.isYou && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: '#60A5FA',
-      fontSize: 11
-    }
-  }, "(You)")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11
-    }
-  }, "Win Rate: ", t.winRate, "%")), /*#__PURE__*/React.createElement("div", {
+  }, pos.size, " lots")), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'right'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#34D399',
-      fontWeight: 800,
-      fontSize: 16
+      fontSize: '13px',
+      fontWeight: '600',
+      color: pos.pnl >= 0 ? 'var(--grn)' : 'var(--red)'
     }
-  }, formatCurrency(t.profit)), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(pos.pnl)), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#475569',
-      fontSize: 11
+      fontSize: '11px',
+      color: 'var(--t3)'
     }
-  }, "This cycle"))))), /*#__PURE__*/React.createElement("div", {
+  }, formatPct(pos.pnlPct / 100)))))))));
+}
+
+// ============================================================================
+// NEWS MONITOR TAB
+// ============================================================================
+
+function NewsMonitor() {
+  const [time, setTime] = React.useState(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => setTime(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const nextEvent = NEWS_EVENTS[0];
+  const eventSeconds = Math.max(0, nextEvent.time * 3600 - time);
+  let statusClass = 'ag';
+  let statusText = 'SAFE';
+  if (eventSeconds < 600) statusClass = 'ab', statusText = 'WARNING';
+  if (eventSeconds < 120) statusClass = 'ar', statusText = 'ACTIVE';
+  if (eventSeconds < 30) statusClass = 'ar', statusText = 'RESTRICTED';
+  return /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 14
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
-      padding: 18
+      padding: '40px',
+      textAlign: 'center',
+      marginBottom: '24px',
+      background: 'linear-gradient(135deg, var(--card), var(--card-h))'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
+      fontSize: '14px',
+      color: 'var(--t2)',
+      marginBottom: '16px',
+      textTransform: 'uppercase',
+      letterSpacing: '1px'
     }
-  }, "YOUR BADGES"), [{
-    emoji: '🎯',
-    name: 'First Payout',
-    desc: 'Received your first payout',
-    earned: true
+  }, nextEvent.event), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '56px',
+      fontWeight: '700',
+      fontFamily: 'monospace',
+      color: 'var(--acc)',
+      marginBottom: '16px',
+      letterSpacing: '2px'
+    }
+  }, formatSeconds(eventSeconds)), /*#__PURE__*/React.createElement("div", {
+    className: `alrt a${statusClass}`,
+    style: {
+      display: 'inline-block',
+      padding: '8px 16px',
+      borderRadius: '6px'
+    }
+  }, statusText)), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Forex Factory Events - Today"), /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      fontSize: '13px'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      borderBottom: '1px solid var(--brd)'
+    }
+  }, /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Time"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Currency"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Impact"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Event"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Forecast"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Previous"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Countdown"))), /*#__PURE__*/React.createElement("tbody", null, NEWS_EVENTS.map(evt => {
+    const secondsLeft = Math.max(0, evt.time * 3600 - time);
+    const hoursLeft = Math.floor(secondsLeft / 3600);
+    const minutesLeft = Math.floor(secondsLeft % 3600 / 60);
+    return /*#__PURE__*/React.createElement("tr", {
+      key: evt.id,
+      style: {
+        borderBottom: '1px solid var(--brd)',
+        background: secondsLeft < 600 ? 'rgba(239, 68, 68, 0.05)' : 'transparent'
+      }
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t1)'
+      }
+    }, evt.time > 0 ? '+' : '', evt.time, "h"), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t1)'
+      }
+    }, evt.currency), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `badge ${evt.impact === 'HIGH' ? 'br' : evt.impact === 'MEDIUM' ? 'ba' : 'bn'}`
+    }, evt.impact)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t1)',
+        maxWidth: '200px'
+      }
+    }, evt.event), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t2)'
+      }
+    }, evt.forecast), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t2)'
+      }
+    }, evt.previous), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '12px 8px',
+        color: 'var(--t1)',
+        fontWeight: '600',
+        fontFamily: 'monospace'
+      }
+    }, `${hoursLeft}h ${minutesLeft}m`));
+  })))));
+}
+
+// ============================================================================
+// CONSISTENCY CALCULATOR TAB
+// ============================================================================
+
+function ConsistencyCalculator() {
+  const [accountId, setAccountId] = React.useState('2-step-pro');
+  const [payoutId, setPayoutId] = React.useState('on-demand');
+  const account = ACCOUNT_TYPES.find(a => a.id === accountId);
+  const totalProfit = MOCK_TRADES.reduce((sum, d) => sum + d.profit, 0);
+  const dailyProfits = MOCK_TRADES.map(d => d.profit);
+  let maxToday = account.consistencyCap * totalProfit / (1 - account.consistencyCap);
+  let currentRatio = Math.min(Math.abs(dailyProfits[dailyProfits.length - 1]) / maxToday, 1);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      marginBottom: '24px',
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Account Type"), /*#__PURE__*/React.createElement("select", {
+    value: accountId,
+    onChange: e => setAccountId(e.target.value),
+    className: "sel",
+    style: {
+      width: '100%'
+    }
+  }, ACCOUNT_TYPES.map(a => /*#__PURE__*/React.createElement("option", {
+    key: a.id,
+    value: a.id
+  }, a.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Payout Schedule"), /*#__PURE__*/React.createElement("select", {
+    value: payoutId,
+    onChange: e => setPayoutId(e.target.value),
+    className: "sel",
+    style: {
+      width: '100%'
+    }
+  }, PAYOUT_TYPES.map(p => /*#__PURE__*/React.createElement("option", {
+    key: p.id,
+    value: p.id
+  }, p.name))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '40px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(ArcGauge, {
+    pct: currentRatio,
+    color: currentRatio > 0.8 ? 'var(--red)' : currentRatio > 0.5 ? 'var(--amb)' : 'var(--grn)',
+    label: `${(account.consistencyCap * 100).toFixed(0)}% Cap`
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: '16px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '14px',
+      color: 'var(--t2)',
+      marginBottom: '4px'
+    }
+  }, "Current Ratio"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--t1)'
+    }
+  }, (currentRatio * 100).toFixed(1), "%"))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Key Metrics"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '4px'
+    }
+  }, "Total Cycle Profit"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, formatCurrency(totalProfit))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '4px'
+    }
+  }, "Max Daily Profit Allowed"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--acc)'
+    }
+  }, formatCurrency(maxToday))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '4px'
+    }
+  }, "Consistency Cap"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--amb)'
+    }
+  }, (account.consistencyCap * 100).toFixed(0), "%")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '4px'
+    }
+  }, "Daily Loss Limit"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--red)'
+    }
+  }, account.dailyLimit ? `-${(account.dailyLimit * 100).toFixed(0)}%` : 'N/A'))))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Daily Breakdown"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+      gap: '12px'
+    }
+  }, dailyProfits.slice(-14).map((profit, i) => {
+    const dayNum = MOCK_TRADES.length - 14 + i;
+    const dayDate = MOCK_TRADES[dayNum].date;
+    const pctOfTotal = totalProfit > 0 ? Math.abs(profit) / totalProfit : 0;
+    return /*#__PURE__*/React.createElement("div", {
+      key: dayNum,
+      style: {
+        padding: '12px',
+        background: 'var(--bg2)',
+        borderRadius: '6px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: '11px',
+        color: 'var(--t3)',
+        marginBottom: '6px'
+      }
+    }, dayDate.split('-').slice(1).join('/')), /*#__PURE__*/React.createElement(MiniBar, {
+      value: pctOfTotal,
+      max: 0.15,
+      color: profit >= 0 ? 'var(--grn)' : 'var(--red)'
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: '11px',
+        color: profit >= 0 ? 'var(--grn)' : 'var(--red)',
+        fontWeight: '600',
+        marginTop: '6px'
+      }
+    }, formatCurrency(profit)));
+  }))));
+}
+
+// ============================================================================
+// COST CALCULATOR TAB
+// ============================================================================
+
+function CostCalculator() {
+  const [instrumentId, setInstrumentId] = React.useState('eurusd');
+  const [accountId, setAccountId] = React.useState('2-step-pro');
+  const [lotSize, setLotSize] = React.useState(1);
+  const [accountSize, setAccountSize] = React.useState(25000);
+  const instrument = INSTRUMENTS.find(i => i.id === instrumentId);
+  const account = ACCOUNT_TYPES.find(a => a.id === accountId);
+  const spreadCost = calculateTrueCost(lotSize, instrument.spread, instrument.pipValue);
+  const commissionCost = lotSize * 2.5;
+  const totalEntryCost = spreadCost + commissionCost;
+  const pctDailyLimit = totalEntryCost / (accountSize * (account.dailyLimit / 100)) * 100;
+  const breakEvenPips = instrument.spread + commissionCost / (lotSize * instrument.pipValue);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      marginBottom: '24px',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Instrument"), /*#__PURE__*/React.createElement("select", {
+    value: instrumentId,
+    onChange: e => setInstrumentId(e.target.value),
+    className: "sel",
+    style: {
+      width: '100%'
+    }
+  }, INSTRUMENTS.map(i => /*#__PURE__*/React.createElement("option", {
+    key: i.id,
+    value: i.id
+  }, i.symbol)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Account Type"), /*#__PURE__*/React.createElement("select", {
+    value: accountId,
+    onChange: e => setAccountId(e.target.value),
+    className: "sel",
+    style: {
+      width: '100%'
+    }
+  }, ACCOUNT_TYPES.map(a => /*#__PURE__*/React.createElement("option", {
+    key: a.id,
+    value: a.id
+  }, a.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Lot Size (", lotSize, ")"), /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "0.01",
+    max: "10",
+    step: "0.01",
+    value: lotSize,
+    onChange: e => setLotSize(parseFloat(e.target.value)),
+    className: "inp",
+    style: {
+      width: '100%'
+    }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Account Size"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: accountSize,
+    onChange: e => setAccountSize(parseFloat(e.target.value)),
+    className: "inp",
+    style: {
+      width: '100%'
+    }
+  }))), instrument.warning && /*#__PURE__*/React.createElement("div", {
+    className: "alrt aa",
+    style: {
+      marginBottom: '24px',
+      padding: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("strong", null, "Silver (XAGUSD) Warning:"), " High spread and volatility. Minimum recommended lot size: 0.1. Ensure capital allocation is appropriate."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Spread Cost"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: 'var(--acc)',
+      marginBottom: '4px'
+    }
+  }, formatCurrency(spreadCost)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, instrument.spread, "pips \xD7 ", lotSize, "lots")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Commission"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: 'var(--acc)',
+      marginBottom: '4px'
+    }
+  }, formatCurrency(commissionCost)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "$2.50 per lot")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Total Entry Cost"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: 'var(--red)',
+      marginBottom: '4px'
+    }
+  }, formatCurrency(totalEntryCost)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "Spread + Commission")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "% of Daily Limit"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: pctDailyLimit > 80 ? 'var(--red)' : 'var(--grn)',
+      marginBottom: '4px'
+    }
+  }, pctDailyLimit.toFixed(1), "%"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "vs ", account.dailyLimit, "% limit")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Break-Even Pips"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '24px',
+      fontWeight: '700',
+      color: 'var(--amb)',
+      marginBottom: '4px'
+    }
+  }, breakEvenPips.toFixed(2)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "Pips to recover costs"))));
+}
+
+// ============================================================================
+// RULE ACKNOWLEDGEMENT TAB
+// ============================================================================
+
+function RuleAcknowledgement() {
+  const [rules, setRules] = React.useState(MOCK_RULES);
+  const [modalOpen, setModalOpen] = React.useState(null);
+  const [auditLog, setAuditLog] = React.useState([]);
+  const handleAcknowledge = ruleId => {
+    setRules(rules.map(r => r.id === ruleId ? {
+      ...r,
+      acknowledged: true
+    } : r));
+    setAuditLog([...auditLog, {
+      timestamp: new Date().toISOString(),
+      ruleId,
+      action: 'ACKNOWLEDGED'
+    }]);
+    setModalOpen(null);
+  };
+  const pending = rules.filter(r => !r.acknowledged).length;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Pending"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--amb)'
+    }
+  }, pending)), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Acknowledged"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, rules.length - pending)), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '8px'
+    }
+  }, "Total"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: 'var(--acc)'
+    }
+  }, rules.length))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, rules.map(rule => /*#__PURE__*/React.createElement("div", {
+    key: rule.id,
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'start',
+      marginBottom: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 4px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, rule.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '8px',
+      fontSize: '11px',
+      color: 'var(--t3)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "badge bn"
+  }, rule.category), /*#__PURE__*/React.createElement("span", null, rule.effectiveDate))), rule.acknowledged && /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
+  }, "ACKNOWLEDGED")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '12px',
+      marginBottom: '16px',
+      padding: '12px',
+      background: 'var(--bg2)',
+      borderRadius: '6px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      marginBottom: '6px'
+    }
+  }, "PREVIOUS RULE"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)',
+      lineHeight: '1.5'
+    }
+  }, rule.oldText)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      marginBottom: '6px'
+    }
+  }, "NEW RULE"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t1)',
+      lineHeight: '1.5'
+    }
+  }, rule.newText))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '8px',
+      marginBottom: '16px',
+      flexWrap: 'wrap'
+    }
+  }, rule.affectedAccounts.map(acc => /*#__PURE__*/React.createElement("span", {
+    key: acc,
+    className: "badge bb",
+    style: {
+      fontSize: '10px'
+    }
+  }, acc))), !rule.acknowledged && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-acc",
+    onClick: () => setModalOpen(rule.id)
+  }, "Review & Acknowledge")))), modalOpen && /*#__PURE__*/React.createElement("div", {
+    className: "mo",
+    onClick: () => setModalOpen(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "mb",
+    style: {
+      maxWidth: '500px'
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--t1)'
+    }
+  }, "Rule Acknowledgement"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--bg2)',
+      padding: '16px',
+      borderRadius: '6px',
+      marginBottom: '16px',
+      maxHeight: '300px',
+      overflow: 'auto',
+      lineHeight: '1.6',
+      color: 'var(--t2)',
+      fontSize: '13px'
+    }
+  }, /*#__PURE__*/React.createElement("p", null, "By acknowledging this rule, you confirm that you have read, understood, and agree to comply with the updated trading rules and regulations set forth by FundingPips. Violation may result in account restrictions or closure."), /*#__PURE__*/React.createElement("p", {
+    style: {
+      marginTop: '12px'
+    }
+  }, "Please ensure you have reviewed both the previous and new rule versions above before proceeding.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost",
+    onClick: () => setModalOpen(null),
+    style: {
+      flex: 1
+    }
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-acc",
+    onClick: () => handleAcknowledge(modalOpen),
+    style: {
+      flex: 1
+    }
+  }, "I Understand & Agree")))), auditLog.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Acknowledgement Audit Log"), /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      fontSize: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      borderBottom: '1px solid var(--brd)'
+    }
+  }, /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600'
+    }
+  }, "Timestamp"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600'
+    }
+  }, "Rule ID"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600'
+    }
+  }, "Action"))), /*#__PURE__*/React.createElement("tbody", null, auditLog.map((log, i) => /*#__PURE__*/React.createElement("tr", {
+    key: i,
+    style: {
+      borderBottom: '1px solid var(--brd)'
+    }
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '8px',
+      color: 'var(--t1)'
+    }
+  }, new Date(log.timestamp).toLocaleString()), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '8px',
+      color: 'var(--t1)'
+    }
+  }, "Rule #", log.ruleId), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '8px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "badge bg"
+  }, log.action))))))));
+}
+
+// ============================================================================
+// AI COACH TAB
+// ============================================================================
+
+function AICoach() {
+  const [messages, setMessages] = React.useState([{
+    id: 1,
+    sender: 'ai',
+    text: 'Welcome to AI Coach! I analyze your trading and provide personalized insights. How can I help today?',
+    typed: true
   }, {
-    emoji: '📅',
-    name: '10-Day Streak',
-    desc: 'Traded 10 days consecutively',
-    earned: true
+    id: 2,
+    sender: 'ai',
+    text: 'Pro Tip: Your consistency ratio is at 45.2% - well within limits. Consider increasing risk on high-confidence setups.',
+    typed: true
   }, {
-    emoji: '💰',
-    name: 'Gold Trader',
-    desc: 'Reached $5K in a single cycle',
-    earned: false
-  }, {
-    emoji: '🏆',
-    name: 'Top 10 Ranked',
-    desc: 'Reached top 10 leaderboard',
-    earned: false
-  }].map((b, i) => /*#__PURE__*/React.createElement("div", {
+    id: 3,
+    sender: 'ai',
+    text: 'Market Alert: FOMC decision in 1.5 hours. Expect increased volatility. Manage position sizes accordingly.',
+    typed: true
+  }]);
+  const [input, setInput] = React.useState('');
+  const [typing, setTyping] = React.useState(null);
+  const prompts = ['Explain my consistency ratio', 'How to optimize position sizing?', 'Best times for news trading?', 'Review my recent trades'];
+  const handleSendMessage = () => {
+    if (!input.trim()) return;
+    const userMsg = {
+      id: messages.length + 1,
+      sender: 'user',
+      text: input,
+      typed: true
+    };
+    setMessages([...messages, userMsg]);
+    setInput('');
+    setTyping(messages.length + 2);
+    setTimeout(() => {
+      const responses = ["Your consistency ratio measures daily profit stability. At 45.2%, you're trading within safe limits for your account tier.", 'Position sizing should scale with your account equity. For 2-Step Pro, risk max 10% daily profit per trade.', 'High-impact news usually comes at 13:00-15:00 UTC. Manage your positions ahead of events.', 'Your recent trades show strong entry timing but exit discipline needs work. Focus on R:R ratios.'];
+      const response = responses[Math.floor(Math.random() * responses.length)];
+      let displayedText = '';
+      let charIndex = 0;
+      const typeInterval = setInterval(() => {
+        if (charIndex < response.length) {
+          displayedText += response[charIndex];
+          setMessages(prev => [...prev.slice(0, -1), {
+            id: messages.length + 2,
+            sender: 'ai',
+            text: displayedText,
+            typed: false
+          }]);
+          charIndex++;
+        } else {
+          clearInterval(typeInterval);
+          setMessages(prev => [...prev.map(m => m.id === messages.length + 2 ? {
+            ...m,
+            typed: true
+          } : m)]);
+          setTyping(null);
+        }
+      }, 30);
+    }, 800);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      marginBottom: '24px',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      flex: 1,
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'auto'
+    }
+  }, messages.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      color: 'var(--t3)'
+    }
+  }, "No messages yet. Start a conversation!") : messages.map(msg => /*#__PURE__*/React.createElement("div", {
+    key: msg.id,
+    style: {
+      marginBottom: '16px',
+      display: 'flex',
+      justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+      animation: 'fadeIn 0.3s'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: '60%',
+      padding: '12px 16px',
+      borderRadius: '8px',
+      background: msg.sender === 'user' ? 'var(--acc)' : 'var(--card-h)',
+      color: msg.sender === 'user' ? 'white' : 'var(--t1)',
+      fontSize: '13px',
+      lineHeight: '1.5'
+    }
+  }, msg.text, msg.sender === 'ai' && !msg.typed && /*#__PURE__*/React.createElement("span", {
+    className: "tc"
+  }, "\u258A"))))), messages.length <= 3 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      marginBottom: '8px',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px'
+    }
+  }, "Suggested Questions"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '8px',
+      flexWrap: 'wrap'
+    }
+  }, prompts.map((prompt, i) => /*#__PURE__*/React.createElement("button", {
+    key: i,
+    className: "btn btn-ghost",
+    onClick: () => {
+      setInput(prompt);
+      setTimeout(() => handleSendMessage(), 100);
+    },
+    style: {
+      fontSize: '12px',
+      padding: '8px 12px'
+    }
+  }, prompt))))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px',
+      display: 'flex',
+      gap: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Ask me anything about trading...",
+    value: input,
+    onChange: e => setInput(e.target.value),
+    onKeyPress: e => e.key === 'Enter' && handleSendMessage(),
+    className: "inp",
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-acc",
+    onClick: handleSendMessage,
+    style: {
+      width: '40px',
+      height: '40px',
+      padding: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M22 2L11 13m11-11l-7 20-4-9-9-4 20-7z"
+  })))));
+}
+
+// ============================================================================
+// ANALYTICS TAB
+// ============================================================================
+
+function Analytics() {
+  const totalProfit = MOCK_TRADES.reduce((sum, d) => sum + d.profit, 0);
+  const equityData = MOCK_TRADES.map((d, i) => ({
+    date: d.date,
+    equity: 25000 + MOCK_TRADES.slice(0, i + 1).reduce((sum, t) => sum + t.profit, 0)
+  }));
+  const dailyReturns = MOCK_TRADES.map(d => d.profit / 25000);
+  const avgReturn = dailyReturns.reduce((a, b) => a + b) / dailyReturns.length;
+  const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2)) / dailyReturns.length;
+  const stdDev = Math.sqrt(variance);
+  const sharpe = avgReturn * 252 / (stdDev * Math.sqrt(252));
+  const sortino = avgReturn * 252 / Math.sqrt(252 * dailyReturns.filter(r => r < 0).reduce((sum, r) => sum + Math.pow(r, 2)) / dailyReturns.length);
+  const winningDays = MOCK_TRADES.filter(d => d.profit > 0).length;
+  const winRate = winningDays / MOCK_TRADES.length * 100;
+  const avgWin = MOCK_TRADES.filter(d => d.profit > 0).reduce((sum, d) => sum + d.profit, 0) / (winningDays || 1);
+  const avgLoss = MOCK_TRADES.filter(d => d.profit < 0).reduce((sum, d) => sum + d.profit, 0) / (MOCK_TRADES.length - winningDays || 1);
+  const profitFactor = Math.abs(avgWin * winningDays / (avgLoss * (MOCK_TRADES.length - winningDays)));
+  let maxDD = 0;
+  let peak = 25000;
+  equityData.forEach(d => {
+    if (d.equity > peak) peak = d.equity;
+    const dd = (peak - d.equity) / peak;
+    if (dd > maxDD) maxDD = dd;
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginBottom: '24px',
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Equity Curve"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '300px'
+    }
+  }, /*#__PURE__*/React.createElement(EquityChart, {
+    data: equityData
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Sharpe Ratio"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--acc)'
+    }
+  }, sharpe.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Sortino Ratio"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--acc)'
+    }
+  }, isFinite(sortino) ? sortino.toFixed(2) : 'N/A')), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Profit Factor"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, profitFactor.toFixed(2))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Max Drawdown"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--red)'
+    }
+  }, (maxDD * 100).toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Win Rate"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, winRate.toFixed(1), "%")), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "lb",
+    style: {
+      marginBottom: '6px'
+    }
+  }, "Avg Win / Loss"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '14px',
+      fontWeight: '700',
+      color: 'var(--grn)',
+      marginBottom: '2px'
+    }
+  }, formatCurrency(avgWin)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '14px',
+      fontWeight: '700',
+      color: 'var(--red)'
+    }
+  }, formatCurrency(avgLoss)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Daily P&L Distribution"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    }
+  }, MOCK_TRADES.slice(-10).map((trade, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
-      padding: '8px 0',
-      opacity: b.earned ? 1 : 0.4
+      gap: '8px',
+      fontSize: '12px'
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 22
+      color: 'var(--t3)',
+      minWidth: '60px'
     }
-  }, b.emoji), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, trade.date), /*#__PURE__*/React.createElement(MiniBar, {
+    value: Math.max(0, trade.profit),
+    max: 500,
+    color: trade.profit >= 0 ? 'var(--grn)' : 'transparent'
+  }), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: '#F1F5F9',
-      fontSize: 13,
-      fontWeight: 600
+      color: trade.profit >= 0 ? 'var(--grn)' : 'var(--red)',
+      fontWeight: '600',
+      minWidth: '70px',
+      textAlign: 'right'
     }
-  }, b.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      color: '#475569',
-      fontSize: 11
-    }
-  }, b.desc)), b.earned && /*#__PURE__*/React.createElement("span", {
-    className: "badge tag-green",
-    style: {
-      marginLeft: 'auto',
-      fontSize: 10
-    }
-  }, "EARNED")))), /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(trade.profit)))))), /*#__PURE__*/React.createElement("div", {
     className: "card",
     style: {
-      padding: 18
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Performance Summary"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#94A3B8',
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 12,
-      letterSpacing: 1
+      display: 'flex',
+      justifyContent: 'space-between'
     }
-  }, "REFERRAL PROGRAM"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: '#64748B',
-      fontSize: 13,
-      lineHeight: 1.7,
-      marginBottom: 14
+      color: 'var(--t2)'
     }
-  }, "Refer traders to FundingPips and earn 10% of their first challenge fee. Powered by Knowledge Work Sales Plugin."), /*#__PURE__*/React.createElement("div", {
+  }, "Total Profit"), /*#__PURE__*/React.createElement("span", {
     style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: '10px 12px',
-      marginBottom: 12,
-      border: '1px solid #1E293B'
+      fontWeight: '700',
+      color: 'var(--grn)'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, formatCurrency(totalProfit))), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: '#475569',
-      fontSize: 11,
-      marginBottom: 4
+      display: 'flex',
+      justifyContent: 'space-between'
     }
-  }, "YOUR REFERRAL LINK"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: '#60A5FA',
-      fontSize: 12,
-      fontFamily: 'monospace'
+      color: 'var(--t2)'
     }
-  }, "fundingpips.com/ref/PE-SHIN-42")), /*#__PURE__*/React.createElement("div", {
+  }, "Total Return"), /*#__PURE__*/React.createElement("span", {
     style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 8
+      fontWeight: '700',
+      color: 'var(--grn)'
     }
-  }, [{
-    label: 'Referrals',
-    value: '3'
-  }, {
-    label: 'Earned',
-    value: '$187'
-  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
+  }, formatPct(totalProfit / 25000))), /*#__PURE__*/React.createElement("div", {
     style: {
-      background: '#162032',
-      borderRadius: 8,
-      padding: '10px 12px',
-      textAlign: 'center',
-      border: '1px solid #1E293B'
+      display: 'flex',
+      justifyContent: 'space-between'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      color: '#475569',
-      fontSize: 10
+      color: 'var(--t2)'
     }
-  }, s.label), /*#__PURE__*/React.createElement("div", {
+  }, "Winning Days"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: '#34D399',
-      fontWeight: 800,
-      fontSize: 18
+      fontWeight: '700',
+      color: 'var(--grn)'
     }
-  }, s.value)))))));
+  }, winningDays, " / ", MOCK_TRADES.length)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--t2)'
+    }
+  }, "Best Day"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, formatCurrency(Math.max(...MOCK_TRADES.map(t => t.profit))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--t2)'
+    }
+  }, "Worst Day"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: '700',
+      color: 'var(--red)'
+    }
+  }, formatCurrency(Math.min(...MOCK_TRADES.map(t => t.profit)))))))));
 }
 
-// ============================================================
-// MAIN APP
-// ============================================================
+// ============================================================================
+// REPORTS TAB
+// ============================================================================
+
+function Reports() {
+  const [reportType, setReportType] = React.useState('summary');
+  const [startDate, setStartDate] = React.useState('2026-02-01');
+  const [endDate, setEndDate] = React.useState('2026-02-28');
+  const [format, setFormat] = React.useState('pdf');
+  const [generating, setGenerating] = React.useState(false);
+  const [ready, setReady] = React.useState(false);
+  const reportTypes = [{
+    id: 'summary',
+    title: 'Performance Summary',
+    desc: 'Complete trading overview and metrics'
+  }, {
+    id: 'consistency',
+    title: 'Consistency Report',
+    desc: 'Daily consistency ratio analysis'
+  }, {
+    id: 'cost',
+    title: 'Cost Analysis',
+    desc: 'Spread, commission and cost breakdown'
+  }, {
+    id: 'audit',
+    title: 'Full Audit',
+    desc: 'Complete transaction & rule audit log'
+  }];
+  const handleGenerate = () => {
+    setGenerating(true);
+    setReady(false);
+    setTimeout(() => {
+      setGenerating(false);
+      setReady(true);
+      setTimeout(() => setReady(false), 3000);
+    }, 2000);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
+    }
+  }, reportTypes.map(rt => /*#__PURE__*/React.createElement("div", {
+    key: rt.id,
+    onClick: () => setReportType(rt.id),
+    style: {
+      padding: '16px',
+      borderRadius: '8px',
+      border: reportType === rt.id ? '2px solid var(--acc)' : '1px solid var(--brd)',
+      background: reportType === rt.id ? 'rgba(59, 130, 246, 0.05)' : 'var(--card)',
+      cursor: 'pointer',
+      transition: 'all 0.2s'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '13px',
+      fontWeight: '600',
+      color: 'var(--t1)',
+      marginBottom: '4px'
+    }
+  }, rt.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--t3)'
+    }
+  }, rt.desc)))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      marginBottom: '24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px',
+      marginBottom: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Start Date"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: startDate,
+    onChange: e => setStartDate(e.target.value),
+    className: "inp",
+    style: {
+      width: '100%'
+    }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "End Date"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: endDate,
+    onChange: e => setEndDate(e.target.value),
+    className: "inp",
+    style: {
+      width: '100%'
+    }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lb",
+    style: {
+      display: 'block',
+      marginBottom: '8px'
+    }
+  }, "Format"), /*#__PURE__*/React.createElement("select", {
+    value: format,
+    onChange: e => setFormat(e.target.value),
+    className: "sel",
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "pdf"
+  }, "PDF"), /*#__PURE__*/React.createElement("option", {
+    value: "xlsx"
+  }, "Excel (XLSX)"), /*#__PURE__*/React.createElement("option", {
+    value: "docx"
+  }, "Word (DOCX)"), /*#__PURE__*/React.createElement("option", {
+    value: "pptx"
+  }, "PowerPoint (PPTX)")))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-acc",
+    onClick: handleGenerate,
+    disabled: generating,
+    style: {
+      width: '100%'
+    }
+  }, generating ? 'Generating...' : 'Generate Report')), ready && /*#__PURE__*/React.createElement("div", {
+    className: `alrt ag`,
+    style: {
+      padding: '16px',
+      marginBottom: '24px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 24 24",
+    fill: "currentColor"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '600',
+      marginBottom: '2px'
+    }
+  }, "Report Ready"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      opacity: 0.8
+    }
+  }, "Your ", reportType, " report is ready to download."))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Report Preview"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'var(--bg2)',
+      padding: '20px',
+      borderRadius: '6px',
+      lineHeight: '1.6',
+      fontSize: '12px',
+      color: 'var(--t3)',
+      fontFamily: 'monospace'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, "PROPEDGE TRADING REPORT"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: '12px'
+    }
+  }, "Account: 2-Step Pro ($25,000)"), /*#__PURE__*/React.createElement("div", null, "Period: ", startDate, " to ", endDate), /*#__PURE__*/React.createElement("div", null, "Format: ", format.toUpperCase()), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: '12px',
+      color: 'var(--t2)'
+    }
+  }, "Report includes:"), /*#__PURE__*/React.createElement("div", null, "\u2022 Performance metrics and analytics"), /*#__PURE__*/React.createElement("div", null, "\u2022 Daily P&L breakdown"), /*#__PURE__*/React.createElement("div", null, "\u2022 Risk analysis"), /*#__PURE__*/React.createElement("div", null, "\u2022 Compliance audit trail"))));
+}
+
+// ============================================================================
+// COMMUNITY TAB
+// ============================================================================
+
+function Community() {
+  const countryFlags = {
+    'US': '🇺🇸',
+    'UK': '🇬🇧',
+    'SG': '🇸🇬',
+    'AU': '🇦🇺',
+    'CA': '🇨🇦',
+    'DE': '🇩🇪',
+    'JP': '🇯🇵',
+    'NL': '🇳🇱'
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingLeft: '240px',
+      paddingTop: '64px',
+      minHeight: '100vh',
+      background: 'var(--bg)',
+      padding: '24px 24px 24px 264px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '24px',
+      marginBottom: '24px',
+      background: 'linear-gradient(135deg, var(--acc), #2dd4bf)',
+      color: 'white'
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      margin: '0 0 8px 0',
+      fontSize: '18px',
+      fontWeight: '700'
+    }
+  }, "Week 9 Challenge"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '13px',
+      opacity: 0.9
+    }
+  }, "Achieve 15+ winning days this week for a 50% commission rebate!"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '12px',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "ptrack"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pfill",
+    style: {
+      width: '62%',
+      background: 'rgba(255,255,255,0.3)'
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      fontWeight: '600',
+      minWidth: '50px'
+    }
+  }, "9 / 15 days"))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      margin: '0 0 16px 0',
+      fontSize: '14px',
+      fontWeight: '600',
+      color: 'var(--t1)'
+    }
+  }, "Global Leaderboard - February"), /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      fontSize: '13px'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      borderBottom: '1px solid var(--brd)'
+    }
+  }, /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px',
+      width: '40px'
+    }
+  }, "Rank"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px'
+    }
+  }, "Trader"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'left',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px',
+      width: '60px'
+    }
+  }, "Region"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'right',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px',
+      width: '100px'
+    }
+  }, "Profit"), /*#__PURE__*/React.createElement("th", {
+    style: {
+      padding: '8px',
+      textAlign: 'right',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      fontSize: '11px',
+      width: '80px'
+    }
+  }, "Win Rate"))), /*#__PURE__*/React.createElement("tbody", null, MOCK_LEADERBOARD.map((trader, i) => /*#__PURE__*/React.createElement("tr", {
+    key: trader.rank,
+    style: {
+      borderBottom: '1px solid var(--brd)',
+      background: trader.rank <= 3 ? 'rgba(16, 185, 129, 0.05)' : 'transparent'
+    }
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '12px 8px',
+      color: 'var(--t1)',
+      fontWeight: '600'
+    }
+  }, trader.rank <= 3 ? ['🥇', '🥈', '🥉'][trader.rank - 1] : trader.rank), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '12px 8px',
+      color: 'var(--t1)',
+      fontWeight: '500'
+    }
+  }, trader.name), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '12px 8px',
+      color: 'var(--t2)',
+      fontSize: '12px'
+    }
+  }, trader.country), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '12px 8px',
+      textAlign: 'right',
+      color: 'var(--grn)',
+      fontWeight: '600'
+    }
+  }, formatCurrency(trader.profit)), /*#__PURE__*/React.createElement("td", {
+    style: {
+      padding: '12px 8px',
+      textAlign: 'right',
+      color: 'var(--t1)',
+      fontWeight: '600'
+    }
+  }, trader.winRate, "%")))))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: '20px',
+      marginTop: '16px',
+      background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(45,212,191,0.05))',
+      border: '1px solid var(--acc)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t2)',
+      fontWeight: '600',
+      marginBottom: '4px',
+      textTransform: 'uppercase'
+    }
+  }, "Your Position"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: 'var(--acc)'
+    }
+  }, "10th Place"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)',
+      marginTop: '4px'
+    }
+  }, "You are 1,085 profit behind 9th")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '18px',
+      fontWeight: '700',
+      color: 'var(--grn)'
+    }
+  }, formatCurrency(6850)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: 'var(--t3)'
+    }
+  }, "Monthly Profit")))));
+}
+
+// ============================================================================
+// MAIN APP COMPONENT
+// ============================================================================
+
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [notification, setNotification] = useState(null);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setNotification({
-        type: 'warning',
-        msg: '⚠️ NFP in 30 minutes — restricted window approaching'
-      });
-      setTimeout(() => setNotification(null), 5000);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  const [activeTab, setActiveTab] = React.useState('dashboard');
   const renderTab = () => {
     switch (activeTab) {
       case 'dashboard':
-        return /*#__PURE__*/React.createElement(Dashboard, {
-          setActiveTab: setActiveTab
-        });
+        return /*#__PURE__*/React.createElement(Dashboard, null);
       case 'news':
         return /*#__PURE__*/React.createElement(NewsMonitor, null);
       case 'consistency':
         return /*#__PURE__*/React.createElement(ConsistencyCalculator, null);
-      case 'cost':
+      case 'costcalc':
         return /*#__PURE__*/React.createElement(CostCalculator, null);
       case 'rules':
         return /*#__PURE__*/React.createElement(RuleAcknowledgement, null);
@@ -3272,41 +2898,23 @@ function App() {
       case 'community':
         return /*#__PURE__*/React.createElement(Community, null);
       default:
-        return /*#__PURE__*/React.createElement(Dashboard, {
-          setActiveTab: setActiveTab
-        });
+        return /*#__PURE__*/React.createElement(Dashboard, null);
     }
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      height: '100vh',
-      background: '#060B18',
-      overflow: 'hidden'
+      background: 'var(--bg)',
+      color: 'var(--t1)',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
     }
   }, /*#__PURE__*/React.createElement(Sidebar, {
     activeTab: activeTab,
     setActiveTab: setActiveTab
-  }), /*#__PURE__*/React.createElement("main", {
-    style: {
-      flex: 1,
-      overflowY: 'auto',
-      minHeight: '100vh'
-    }
-  }, renderTab()), notification && /*#__PURE__*/React.createElement("div", {
-    className: "notification"
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      background: notification.type === 'warning' ? '#92400E' : '#1E40AF',
-      border: `1px solid ${notification.type === 'warning' ? '#F59E0B' : '#3B82F6'}`,
-      borderRadius: 10,
-      padding: '12px 18px',
-      color: 'white',
-      fontSize: 13,
-      fontWeight: 600,
-      maxWidth: 340,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
-    }
-  }, notification.msg)));
+  }), /*#__PURE__*/React.createElement(TopBar, null), renderTab());
 }
+
+// ============================================================================
+// RENDER APP
+// ============================================================================
+
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
